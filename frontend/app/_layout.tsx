@@ -9,7 +9,7 @@ import * as Linking from "expo-linking";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider, useAuth } from "@/src/lib/auth";
-import { BACKEND_URL } from "@/src/lib/api";
+import { BACKEND_URL, storage } from "@/src/lib/api";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -56,8 +56,10 @@ function AuthedGate() {
         const perm = await Notifications.requestPermissionsAsync();
         if (perm.status !== "granted") return;
         const tok = await Notifications.getDevicePushTokenAsync();
+        const jwt = await storage.get("access_token");
         await fetch(`${BACKEND_URL}/api/register-push`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
           body: JSON.stringify({ user_id: user.id, platform: Platform.OS, device_token: tok.data }),
         });
       } catch {}

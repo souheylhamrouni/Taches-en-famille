@@ -341,10 +341,12 @@ async def leaderboard(user=Depends(current_user)):
 
 # -------- Push registration --------
 @api.post("/register-push", status_code=201)
-async def register_push(body: SetPushToken):
-    await db.users.update_one({"id": body.user_id}, {"$set": {"push_token": body.device_token, "platform": body.platform}})
+async def register_push(body: SetPushToken, user=Depends(current_user)):
+    # Derive the user from the auth token — never trust a caller-supplied user_id.
+    await db.users.update_one({"id": user["id"]}, {"$set": {"push_token": body.device_token, "platform": body.platform}})
+    payload = {"user_id": user["id"], "platform": body.platform, "device_token": body.device_token}
     try:
-        r = await _push_client.post("/api/v1/push/users/register", json=body.model_dump())
+        r = await _push_client.post("/api/v1/push/users/register", json=payload)
         if r.status_code >= 400:
             log.warning(f"push register {r.status_code}")
     except Exception as e:
@@ -692,6 +694,9 @@ async def vote_completion(comp_id: str, body: ValidateBody, user=Depends(current
 
 @api.get("/photos/{path:path}")
 async def get_photo(path: str, request: Request, token: Optional[str] = None):
+    # Reject path traversal / absolute paths outright.
+    if ".." in path or path.startswith("/") or "\\" in path:
+        raise HTTPException(404, "Photo introuvable")
     # Accept auth via Authorization header (native) OR ?token= query (web <img>).
     raw = None
     if token:
@@ -708,6 +713,11 @@ async def get_photo(path: str, request: Request, token: Optional[str] = None):
             raise HTTPException(401, "Jeton invalide")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Jeton invalide")
+    # Authorize: the photo must belong to a completion in the caller's family.
+    fam_id = p.get("family_id")
+    owner = await db.completions.find_one({"photo_path": path, "family_id": fam_id}, {"_id": 0, "id": 1})
+    if not owner:
+        raise HTTPException(404, "Photo introuvable")
     try:
         content, ct = await run_in_threadpool(_get_object_sync, path)
         return Response(content=content, media_type=ct)
@@ -862,17 +872,22 @@ async def penalties(user=Depends(current_user)):
     return {"penalties": logs}
 
 
-async def apply_daily_penalties():
-    """Runs at 20:00 daily: check incomplete daily tasks and apply penalty."""
+async def apply_daily_penalties(only_family_id: Optional[str] = None):
+    """Runs at 20:00 daily: check incomplete daily tasks and apply penalty.
+    Idempotent per (user, task, day). Optionally scoped to a single family."""
     log.info("Running daily penalty check")
     today_key = date.today().isoformat()
-    families = await db.families.find({}, {"_id": 0}).to_list(500)
+    fam_query = {"id": only_family_id} if only_family_id else {}
+    families = await db.families.find(fam_query, {"_id": 0}).to_list(500)
     for fam in families:
         tasks = await db.tasks.find({"family_id": fam["id"], "frequency": "daily", "active": True}, {"_id": 0}).to_list(200)
         users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(50)
         # Batch-load today's completions for the whole family once (avoid N+1).
         comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1, "status": 1}).to_list(5000)
         done = {(c["task_id"], c["user_id"]): c["status"] for c in comps}
+        # Batch-load penalties already applied today to stay idempotent.
+        existing_pen = await db.penalties.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
+        penalized = {(pn["task_id"], pn["user_id"]) for pn in existing_pen}
         for u in users:
             for t in tasks:
                 if t["assigned_to"] and u["id"] not in t["assigned_to"]:
@@ -880,14 +895,17 @@ async def apply_daily_penalties():
                 status = done.get((t["id"], u["id"]))
                 if status in ("pending", "approved"):
                     continue
+                if (t["id"], u["id"]) in penalized:
+                    continue  # already penalized today
                 # apply penalty
                 pts = t.get("penalty_points", 50)
                 await db.users.update_one({"id": u["id"]}, {"$inc": {"points": -pts}, "$set": {"streak": 0, "last_streak_date": None}})
                 await db.penalties.insert_one({
                     "id": new_id(), "family_id": fam["id"], "user_id": u["id"], "user_name": u["name"],
                     "task_id": t["id"], "task_title": t["title"], "points_deducted": pts,
-                    "timestamp": now(),
+                    "day": today_key, "timestamp": now(),
                 })
+                penalized.add((t["id"], u["id"]))
                 await send_push([u["id"]], {
                     "title": "Pénalité appliquée ⚠️",
                     "message": f"-{pts} pts pour « {t['title'] }» non fait",
@@ -919,15 +937,21 @@ async def send_evening_reminders():
 
 
 @api.post("/dev/run-penalties")
-async def dev_run_penalties(user=Depends(current_user)):
-    """Manual trigger for testing."""
-    await apply_daily_penalties()
+async def dev_run_penalties(user=Depends(parent_pin)):
+    """Manual trigger — parent + PIN only, scoped to the caller's own family."""
+    await apply_daily_penalties(only_family_id=user["family_id"])
     return {"ok": True}
 
 
 # -------- Seed demo --------
 @api.post("/dev/seed-demo")
-async def seed_demo():
+async def seed_demo_route(request: Request):
+    if request.headers.get("X-Admin-Key") != JWT_SECRET:
+        raise HTTPException(403, "Interdit")
+    return await _seed_demo()
+
+
+async def _seed_demo():
     """Create a demo French family. Idempotent-ish: skips if already exists."""
     existing = await db.users.find_one({"email": "papa@demo.fr"})
     if existing:
@@ -1043,7 +1067,7 @@ async def startup():
     scheduler.start()
     # auto-seed demo
     try:
-        await seed_demo()
+        await _seed_demo()
     except Exception as e:
         log.warning(f"seed err: {e}")
 
