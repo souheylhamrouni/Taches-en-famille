@@ -870,12 +870,15 @@ async def apply_daily_penalties():
     for fam in families:
         tasks = await db.tasks.find({"family_id": fam["id"], "frequency": "daily", "active": True}, {"_id": 0}).to_list(200)
         users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(50)
+        # Batch-load today's completions for the whole family once (avoid N+1).
+        comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1, "status": 1}).to_list(5000)
+        done = {(c["task_id"], c["user_id"]): c["status"] for c in comps}
         for u in users:
             for t in tasks:
                 if t["assigned_to"] and u["id"] not in t["assigned_to"]:
                     continue
-                comp = await db.completions.find_one({"task_id": t["id"], "user_id": u["id"], "day": today_key})
-                if comp and comp["status"] in ("pending", "approved"):
+                status = done.get((t["id"], u["id"]))
+                if status in ("pending", "approved"):
                     continue
                 # apply penalty
                 pts = t.get("penalty_points", 50)
@@ -899,13 +902,14 @@ async def send_evening_reminders():
     for fam in families:
         tasks = await db.tasks.find({"family_id": fam["id"], "frequency": "daily", "active": True}, {"_id": 0}).to_list(200)
         users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0}).to_list(50)
+        comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
+        submitted = {(c["task_id"], c["user_id"]) for c in comps}
         for u in users:
             missing = []
             for t in tasks:
                 if t["assigned_to"] and u["id"] not in t["assigned_to"]:
                     continue
-                comp = await db.completions.find_one({"task_id": t["id"], "user_id": u["id"], "day": today_key})
-                if not comp:
+                if (t["id"], u["id"]) not in submitted:
                     missing.append(t["title"])
             if missing:
                 await send_push([u["id"]], {

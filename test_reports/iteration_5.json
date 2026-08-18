@@ -1,0 +1,41 @@
+{
+  "summary": "Backend-only regression for the batched N+1 fix in apply_daily_penalties() and send_evening_reminders(). 53/53 pytest pass (7 new + 46 prior). New file test_penalties_batched.py builds an isolated fresh family (2 kids), creates 5 tasks (A-only daily, all-kids daily, B-only daily done by B, weekly-A, once-A), triggers POST /api/dev/run-penalties, and asserts EXACT arithmetic: kid_a lost 28 pts (17 A-only + 11 all-kids), kid_b lost 11 pts (only all-kids — completed task excluded, A-only ignored, weekly/once ignored), both streaks reset to 0. Also asserted /api/penalties log rows contain expected (user_id, task_id, points_deducted=17, task_title) tuples for the newly-created penalties and do NOT contain rows for the completed/weekly/once/wrong-assignee combinations. Demo regressions revalidated: papa@demo.fr + lea@demo.fr login, PIN 1234, GET /api/tasks, POST /api/tasks/{id}/complete (non-photo → status='approved' + points +N), GET /api/challenges, GET /api/events (recurring), GET /api/badges (still 10 badges, Léa's unlocks intact). Full pre-existing suite (backend_test.py, test_badges.py, test_delete_account.py, test_tasks_regression.py) untouched and green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/photos/{path}", "issue": "(Carry-over) `?token=` query param declared but ignored — RN <Image> on web preview can't send Authorization header so proof photos may 401 in the browser."},
+      {"endpoint": "backend startup", "issue": "(Carry-over) Uses deprecated FastAPI @app.on_event handlers. Prefer lifespan context manager."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_penalties_batched.py",
+    "/app/test_reports/pytest/pytest_iteration5_penalties.xml",
+    "/app/test_reports/pytest/pytest_iteration5_full.xml"
+  ],
+  "action_items": [
+    "(Carry-over, low priority) Honor `?token=` in GET /api/photos/{path} so RN <Image> on web preview can render proof photos.",
+    "(Carry-over, low priority) Migrate FastAPI startup/shutdown handlers to lifespan context manager."
+  ],
+  "critical_code_review_comments": [
+    "server.py:865-894 apply_daily_penalties: batching correctly done — one db.completions.find({family_id, day=today_key}) with projection {task_id,user_id,status} builds `done={(task_id,user_id): status}`; inner loop reads dict in O(1). Excludes pending|approved (matches prior find_one({status:{$in:['pending','approved']}}) filter). Behaviour identical.",
+    "server.py:897-918 send_evening_reminders: same batch pattern with a set of (task_id,user_id) — any completion (any status) counts as 'submitted' so no reminder is sent. Semantically identical to prior find_one existence check.",
+    "server.py:871 `frequency:'daily'` filter on tasks means weekly/once are never penalized — verified by test.",
+    "server.py:878 `if t['assigned_to'] and u['id'] not in t['assigned_to']: continue` correctly implements 'empty list = all kids'.",
+    "server.py:885 streak reset to 0 + last_streak_date=None on any penalty — verified by test (kid_b, penalized once, streak=0)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_penalties_batched.py (NEW — 7 tests: batched penalty math for daily assigned + unassigned + completed exclusion + weekly/once exclusion + assigned_to filtering + streak reset + penalty-log assertions; plus demo regression sanity for login/tasks/complete/challenges/events/badges)"
+  ],
+  "success_rate": {"backend": "100% (53/53)", "frontend": "not tested (backend-only request)"},
+  "seed_data_creation": "Test creates one fresh isolated family (TEST_pen_p_*/TEST_pen_c_A_*/TEST_pen_c_B_*) per session with prefixed emails; family is left in DB but has no impact on demo accounts. Demo regression test creates + deletes a temp non-photo task for Léa (+4 pts to lea@demo.fr per run — negligible drift). No pollution of papa/hugo/emma balances.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: EXPO_PUBLIC_BACKEND_URL=<url> pytest backend/tests/ -v --tb=short (~13s with xdist). test_penalties_batched.py::TestBatchedPenalties::test_penalty_applied_for_incomplete_assigned_daily is the canonical regression for the N+1 fix: it exercises done/undone/wrong-assignee/weekly/once permutations in a single dev/run-penalties invocation and asserts exact delta arithmetic. If a future change drops the batching or breaks the (task_id,user_id) dict semantics, this test will catch it. Note: test does +4 pts to lea@demo.fr each run (temp non-photo task completion) — this is intentional and tolerable given the demo balances (~320).",
+  "rca_of_issue": "N/A — no bugs found. The batched apply_daily_penalties/send_evening_reminders implementation at server.py:865-918 preserves identical business logic (assigned_to filter, pending|approved short-circuit, streak reset, penalty log shape) while replacing per-(task,user) find_one() with a single family-level find + in-memory dict/set. Every observable outcome verified equivalent to prior 46/46 baseline."
+}

@@ -117,7 +117,7 @@ export default function Register() {
 
             <Link href="/(auth)/login" asChild>
               <Pressable testID="go-login-button" style={styles.linkBtn}>
-                <Text style={styles.linkText}>J'ai déjà un compte</Text>
+                <Text style={styles.linkText}>{"J'ai déjà un compte"}</Text>
               </Pressable>
             </Link>
           </View>

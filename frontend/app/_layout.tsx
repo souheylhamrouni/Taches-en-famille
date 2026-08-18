@@ -9,7 +9,7 @@ import * as Linking from "expo-linking";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider, useAuth } from "@/src/lib/auth";
-import { BACKEND_URL, storage } from "@/src/lib/api";
+import { BACKEND_URL } from "@/src/lib/api";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -63,17 +63,19 @@ function AuthedGate() {
       } catch {}
     })();
 
+    const openDeep = (url: string) => {
+      if (url.startsWith("http")) { Linking.openURL(url); } else { router.push(url as any); }
+    };
     const tapSub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data: any = response.notification.request.content.data || {};
       const url = data.deeplink || data.action_url;
-      if (!url) return;
-      url.startsWith("http") ? Linking.openURL(url) : router.push(url);
+      if (url) openDeep(url);
     });
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const data: any = response.notification.request.content.data || {};
       const url = data.deeplink || data.action_url;
-      if (url) url.startsWith("http") ? Linking.openURL(url) : router.push(url);
+      if (url) openDeep(url);
     });
     return () => { tapSub.remove(); };
   }, [user]);
