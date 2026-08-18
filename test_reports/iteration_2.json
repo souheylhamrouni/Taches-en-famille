@@ -1,0 +1,42 @@
+{
+  "summary": "Regression testing of GET /api/tasks N+1 optimization. 30/30 backend tests pass (24 existing + 6 new focused regression). Verified that after the batch-query refactor (per-user completions loaded once into by_task dict), today_status still maps correctly to 'todo' (no completion), 'pending' (photo task, waiting vote), 'approved' (auto-approve or peer-approved), and today_completion_id is populated only when a completion exists. Confirmed: (1) Léa login + GET /api/tasks returns all her assigned daily/weekly tasks (Ranger sa chambre, Faire ses devoirs, Vider le lave-vaisselle, Nettoyer la salle de bain, etc.) with today_status='todo' initially; (2) POST /api/tasks/{id}/complete on non-photo task auto-approves, GET /api/tasks reflects today_status='approved' with correct today_completion_id, and GET /api/auth/me points increased by exact points_worth; (3) duplicate same-day completion returns 409; (4) soft-deleted tasks (active=false) are excluded from GET /api/tasks for both kid and parent; (5) Parent PIN + peer-vote flow unchanged — pending photo completion is visible via /api/completions/pending and parent approval flips today_status from 'pending' to 'approved'. No regressions detected from the N+1 optimization.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/photos/{path}", "issue": "Signature declares an Optional `token` query param but never uses it — auth still only reads the Authorization header. React Native <Image> can't send Authorization headers on web, so proof photos may 401 in browser preview. (Pre-existing from iteration_1.)"},
+      {"endpoint": "backend startup", "issue": "Uses deprecated FastAPI @app.on_event('startup'/'shutdown'). Prefer lifespan context manager. (Pre-existing.)"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tasks_regression.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_regression.xml"
+  ],
+  "action_items": [
+    "No action required for the N+1 refactor — behavior is identical to the pre-refactor loop.",
+    "(Carry-over) Honor `?token=` query in GET /api/photos/{path} so RN <Image> can render proofs on web.",
+    "(Carry-over) Migrate FastAPI startup/shutdown to lifespan handlers."
+  ],
+  "critical_code_review_comments": [
+    "list_tasks (server.py:326-339) correctly builds by_task = {c['task_id']: c for c in comps} scoped by family_id + user_id + today day_key; O(N+M) instead of O(N*M). Semantics identical to previous find_one loop.",
+    "Query filter {'active': {'$ne': False}} correctly includes seeded tasks (which have active=True) AND legacy tasks with no `active` field, while excluding soft-deleted ones. Verified in test_soft_deleted_task_excluded_from_list.",
+    "today_completion_id is set to None (not missing) when no completion exists — good for frontend nullability handling.",
+    "Compound index on (task_id, user_id, day) created at startup makes the batch query efficient."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_tasks_regression.py (new — 6 focused regression tests)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "not tested (backend-only run)"},
+  "seed_data_creation": "All test-created tasks/rewards use TEST_ prefix and are torn down in try/finally or explicit delete calls. No persistent test data left in DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "N+1 optimization in GET /api/tasks fully verified. Regression file at /app/backend/tests/test_tasks_regression.py can be reused for future refactors touching list_tasks. Full suite 30/30 in ~5s. Credentials & PIN unchanged.",
+  "rca_of_issue": "N/A — no bug found. Refactor preserves behavior."
+}

@@ -327,13 +327,15 @@ def _task_out(t: dict) -> dict:
 async def list_tasks(user=Depends(current_user)):
     tasks = await db.tasks.find({"family_id": user["family_id"], "active": {"$ne": False}}, {"_id": 0}).to_list(500)
     today_key = date.today().isoformat()
-    # attach today's completion status per task for current user
+    # Batch-load today's completions for this user in one query (avoid N+1).
+    comps = await db.completions.find(
+        {"family_id": user["family_id"], "user_id": user["id"], "day": today_key}, {"_id": 0}
+    ).to_list(500)
+    by_task = {c["task_id"]: c for c in comps}
     for t in tasks:
-        comp = await db.completions.find_one({
-            "task_id": t["id"], "user_id": user["id"], "day": today_key
-        }, {"_id": 0})
-        t["today_status"] = comp["status"] if comp else "todo"
-        t["today_completion_id"] = comp["id"] if comp else None
+        c = by_task.get(t["id"])
+        t["today_status"] = c["status"] if c else "todo"
+        t["today_completion_id"] = c["id"] if c else None
     return {"tasks": tasks}
 
 
