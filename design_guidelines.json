@@ -1,0 +1,210 @@
+{
+  "app_name": "TâcheHéros",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A highly gamified, vibrant, and energetic family companion that turns chores into rewarding quests.",
+  "color": {
+    "surface": "#FFFDF7",
+    "onSurface": "#1A1A1A",
+    "surfaceSecondary": "#F4F2EC",
+    "onSurfaceSecondary": "#1A1A1A",
+    "surfaceTertiary": "#EAE7DF",
+    "onSurfaceTertiary": "#5C5C5C",
+    "surfaceInverse": "#1A1A1A",
+    "onSurfaceInverse": "#FFFDF7",
+    "brand": "#58CC02",
+    "brandPrimary": "#58CC02",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#FF9600",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#FFC800",
+    "onBrandTertiary": "#1A1A1A",
+    "success": "#58CC02",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FFC800",
+    "onWarning": "#1A1A1A",
+    "error": "#FF4B4B",
+    "onError": "#FFFFFF",
+    "info": "#FF9600",
+    "onInfo": "#FFFFFF",
+    "border": "#EAE7DF",
+    "borderStrong": "#D6D2C4",
+    "divider": "#EAE7DF"
+  },
+  "typography": {
+    "displayFontFamily": "Fredoka",
+    "textFontFamily": "Nunito",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous spacing. Chunky layout avoiding density.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 12,
+    "md": 16,
+    "lg": 24,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Apply to bottom tab bar and sticky headers.",
+      "Use as a backdrop for the FAB."
+    ],
+    "dont's": [
+      "Do not use on task cards, reward cards, or standard list items.",
+      "Avoid on heavy UI elements to maintain the tactile, chunky feel."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Onboarding",
+      "purpose": "Empathetic, welcoming login and registration flow for parents to set up the family.",
+      "states": {
+        "loading": "Centered bouncing mascot animation.",
+        "empty": "N/A",
+        "error": "Card with red warning text and 'Réessayer' button."
+      },
+      "layout": "Full-bleed playful background, large welcoming typography, and chunky primary buttons. PIN entry modal utilizes oversized numeric keypad."
+    },
+    {
+      "name": "Kid_Accueil",
+      "purpose": "The kid's central hub displaying current streak, points, avatar, and today's main quest.",
+      "states": {
+        "loading": "Skeleton of the streak banner and today's task card.",
+        "empty": "Illustration of the mascot sleeping with text 'Aucune quête aujourd'hui!'",
+        "error": "Error message with a 'Rafraîchir' button."
+      },
+      "layout": "Personalized greeting at top. Progress/streak bar prominent. A unified, path-like display for today's tasks to focus attention."
+    },
+    {
+      "name": "Kid_Taches",
+      "purpose": "List of recurring and one-off tasks with the ability to upload photo proof.",
+      "states": {
+        "loading": "Staggered skeleton rows.",
+        "empty": "Illustration of a clean room, 'Tout est fait!'.",
+        "error": "Error loading tasks."
+      },
+      "layout": "List of chunky chore cards. Each card displays reward points clearly. Task detail uses a bottom sheet to prompt camera upload."
+    },
+    {
+      "name": "Kid_Classement",
+      "purpose": "Weekly leaderboard showing family members' rankings.",
+      "states": {
+        "loading": "Podium skeleton.",
+        "empty": "Illustration of an empty podium.",
+        "error": "Could not load leaderboard."
+      },
+      "layout": "Top half is a multi-tiered podium (1st, 2nd, 3rd) with avatars. Bottom half is a list view of all participants showing their proximity to the next rank."
+    },
+    {
+      "name": "Kid_Boutique",
+      "purpose": "Reward shop where kids can spend earned points on rewards.",
+      "states": {
+        "loading": "Grid skeleton of reward cards.",
+        "empty": "Illustration of an empty chest, 'La boutique est vide pour le moment!'.",
+        "error": "Could not load rewards."
+      },
+      "layout": "Sticky wallet balance at the top. 2-column grid of reward cards with transparent point costs and large 'Réclamer' pill buttons."
+    },
+    {
+      "name": "Parent_Dashboard",
+      "purpose": "Parent's overview of family progress, pending validations, and quick actions.",
+      "states": {
+        "loading": "Dashboard module skeletons.",
+        "empty": "Illustration of parents relaxing, 'Rien à valider!'.",
+        "error": "Error loading dashboard."
+      },
+      "layout": "Data-rich but clean management view. Top section shows pending approvals, followed by top performer highlights and quick links to manage chores."
+    },
+    {
+      "name": "Validation_Feed",
+      "purpose": "A feed for parents and family members to approve or reject photo proofs of completed tasks.",
+      "states": {
+        "loading": "Skeleton image feed.",
+        "empty": "Illustration of a checkmark shield, 'Toutes les preuves sont validées!'.",
+        "error": "Error loading feed."
+      },
+      "layout": "Vertical scrolling feed of photo proofs. Each post features large 'Approuver' (green) and 'Rejeter' (red/orange) floating pill buttons."
+    },
+    {
+      "name": "Shared_Calendar",
+      "purpose": "Shared family calendar with month and agenda views.",
+      "states": {
+        "loading": "Calendar grid skeleton.",
+        "empty": "Illustration of an empty calendar page.",
+        "error": "Error loading calendar."
+      },
+      "layout": "Month view on top with colored dots for events, agenda list view below scrolling independently."
+    },
+    {
+      "name": "Shared_Shopping_List",
+      "purpose": "Shared checklist for family groceries and needs.",
+      "states": {
+        "loading": "Skeleton list items.",
+        "empty": "Illustration of an empty basket, 'Le frigo est plein!'.",
+        "error": "Error loading list."
+      },
+      "layout": "Simple list of chunky rows with oversized custom checkboxes. Floating action button (FAB) to add new items."
+    }
+  ],
+  "images": {
+    "hero_kid_dashboard": {
+      "url": "https://images.unsplash.com/photo-1638803040283-7a5ffd48dad5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwxfHwzZCUyMHJlbmRlciUyMGN1dGUlMjBtb25zdGVyJTIwbWFzY290fGVufDB8fHx8MTc4NzA3MDI1Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Playful mascot representing the app guide"
+    },
+    "hero_reward_shop": {
+      "url": "https://images.pexels.com/photos/35271652/pexels-photo-35271652.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "3D treasure chest with gold"
+    },
+    "points_icon": {
+      "url": "https://images.unsplash.com/photo-1669951584605-4deba095a87f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHwzZCUyMHJlbmRlciUyMGdvbGQlMjBjb2lufGVufDB8fHx8MTc4NzA3MDI1Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "3D gold coins"
+    },
+    "empty_validations": {
+      "url": "https://images.pexels.com/photos/20279300/pexels-photo-20279300.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Checklist on paper indicating all done"
+    },
+    "parent_welcome": {
+      "url": "https://images.unsplash.com/photo-1593590009554-4b92142e8f9f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxwYXJlbnQlMjBhbmQlMjBjaGlsZCUyMGhpZ2glMjBmaXZlfGVufDB8fHx8MTc4NzA3MDI1Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Parent and child high five at sunset"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Design Language: Apply 'Tactile/Playful' heavily. Use chunky cards, large hit areas (44x44pt min), and soft, rounded typography (Fredoka/Nunito).",
+    "Avoid Blues: Strictly adhere to the color palette provided (Greens, Oranges, Yellows). Do not use default iOS blue, system indigo, or any shade of purple.",
+    "Language: Ensure EVERY label, button, empty state, error message, and placeholder is in French as requested.",
+    "Gamification UX: The kid's view must feel like a game. Emphasize streaks (flame icon), points (XP pill), and progress bars.",
+    "Navigation: Implement a separate bottom_tabs navigation for Kid (Accueil, Tâches, Classement, Boutique) and Parent (Dashboard, Valider, Calendrier, Paramètres).",
+    "Interaction: Add overshoot spring animations on buttons and implement the defined haptics for task completion.",
+    "Photo Validation: Design the validation feed akin to a social feed with large, accessible approve/reject buttons.",
+    "Adhere to the exact layout rules extracted from the research: modular task cards, prominent visual progress trackers, and multi-tiered podium for the leaderboard."
+  ]
+}

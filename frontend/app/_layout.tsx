@@ -1,0 +1,102 @@
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { LogBox, Platform } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
+import * as Linking from "expo-linking";
+
+import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { AuthProvider, useAuth } from "@/src/lib/auth";
+import { BACKEND_URL, storage } from "@/src/lib/api";
+
+LogBox.ignoreAllLogs(true);
+SplashScreen.preventAutoHideAsync();
+
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false,
+      shouldShowBanner: true, shouldShowList: true,
+    } as any),
+  });
+}
+if (Platform.OS === "android") {
+  Notifications.setNotificationChannelAsync("default", {
+    name: "Défaut",
+    importance: Notifications.AndroidImportance.MAX,
+    sound: "default",
+  });
+}
+
+function AuthedGate() {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const inAuth = segments[0] === "(auth)";
+    const inKid = segments[0] === "(kid)";
+    const inParent = segments[0] === "(parent)";
+    if (!user && !inAuth) {
+      router.replace("/(auth)/login");
+    } else if (user) {
+      if (user.role === "parent" && !inParent) router.replace("/(parent)");
+      if (user.role === "child" && !inKid) router.replace("/(kid)");
+    }
+  }, [user, loading, segments]);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || !user) return;
+    (async () => {
+      try {
+        const perm = await Notifications.requestPermissionsAsync();
+        if (perm.status !== "granted") return;
+        const tok = await Notifications.getDevicePushTokenAsync();
+        await fetch(`${BACKEND_URL}/api/register-push`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id, platform: Platform.OS, device_token: tok.data }),
+        });
+      } catch {}
+    })();
+
+    const tapSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data: any = response.notification.request.content.data || {};
+      const url = data.deeplink || data.action_url;
+      if (!url) return;
+      url.startsWith("http") ? Linking.openURL(url) : router.push(url);
+    });
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data: any = response.notification.request.content.data || {};
+      const url = data.deeplink || data.action_url;
+      if (url) url.startsWith("http") ? Linking.openURL(url) : router.push(url);
+    });
+    return () => { tapSub.remove(); };
+  }, [user]);
+
+  return null;
+}
+
+export default function RootLayout() {
+  const [loaded, error] = useIconFonts();
+
+  useEffect(() => {
+    if (loaded || error) SplashScreen.hideAsync();
+  }, [loaded, error]);
+
+  if (!loaded && !error) return null;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <AuthedGate />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FFFDF7" } }} />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}

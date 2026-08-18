@@ -1,0 +1,46 @@
+{
+  "summary": "Full backend + frontend testing of TâcheHéros. Backend: 24/24 pytest cases passed (auth, PIN gating, tasks CRUD, photo & non-photo completions, peer validation vote, photo GET via Emergent Object Storage, rewards + claim (insufficient/success), family & leaderboard, calendar CRUD, shopping list CRUD, penalties list + dev/run-penalties, push registration). Frontend (mobile viewport 390x844): Login screen renders, demo-parent/demo-kid quick-fill works, parent login navigates to parent tabs (Tableau/Tâches/Récompenses/Réglages) and shows family code + counts + podium + penalties, opening 'add task' shows PIN parent modal (4-digit). Kid login navigates to kid tabs (Accueil/Tâches/Classement/Boutique/Plus); 'Marquer fait' on a non-photo task correctly increments points (Emma 60→70) and flashes 'Bravo ! En attente de validation famille'; shop shows 'Réclamer' when affordable and 'Trop cher' otherwise; Plus tab lists Calendar/Courses/Valider/Deconnexion. No deprecated Expo packages (expo-av/expo-barcode-scanner/expo-background-fetch not used).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/tasks", "issue": "list_tasks does not filter by active:True. DELETE /api/tasks/{id} only sets active=false (soft delete), but list still returns inactive tasks so 'deleted' tasks stay visible in Kid Tâches and Parent admin lists (observed TEST_task lingering)."},
+      {"endpoint": "GET /api/photos/{path}", "issue": "Signature declares an unused Optional `token` query param and uses Depends(current_user) that reads Authorization header only. React Native <Image> can't send Authorization headers, so kid/parent UI likely cannot render proof photos in the browser unless you pass token via a `token=` query and honor it. Currently ?token=... is ignored."},
+      {"endpoint": "backend startup", "issue": "Uses deprecated FastAPI @app.on_event('startup'/'shutdown'). Prefer lifespan handlers (non-blocking)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "photo proof rendering", "issue": "GET /api/photos/{path} requires Authorization header. If frontend uses <Image source={{uri}}/> to render pending completion photos, images will 401 on web/native. Confirm implementation of validate feed to send token or make photo route accept token query.", "affected_testIDs": ["validate-feed"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "web build", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Likely from a third-party or internal component; low priority but should be migrated."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Filter GET /api/tasks by {active: True} so soft-deleted tasks stop appearing in Kid & Parent lists (also cleanup lingering TEST_task if desired).",
+    "Make GET /api/photos/{path} accept `?token=` (JWT) so React Native <Image> can load proof photos, or wrap Image in a signed-URL fetch.",
+    "Migrate FastAPI startup/shutdown hooks to lifespan context manager (deprecation).",
+    "Investigate 'props.pointerEvents is deprecated' warning source and fix."
+  ],
+  "critical_code_review_comments": [
+    "server.py imports `bson.ObjectId` but never uses it; harmless but dead import.",
+    "`current_user` correctly excludes _id/password_hash/pin_hash. All API responses reviewed exclude _id (good).",
+    "Password verify uses DUMMY hash to prevent user-enumeration timing attacks — good.",
+    "Photo storage uses run_in_threadpool to keep async loop unblocked — good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (created)"
+  ],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of tested flows (login parent+kid, PIN modal, non-photo complete + points delta, shop affordability, tab nav, dashboard)"},
+  "seed_data_creation": "Test also created transient TEST_task/TEST_reward via API and cleaned them up, and registered a throwaway TEST_parent/TEST_child family for register-flow validation.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend is stable on demo family. Auth: papa@demo.fr / demo1234 (PIN 1234), kids lea/hugo/emma@demo.fr / demo1234. PIN token goes in `X-Parent-Pin-Token` header. Photo GET needs Authorization header — image tags in RN can't attach headers so validate that path if you touch photo rendering. Non-photo task auto-approves; photo task creates pending completion that any other family member (or a parent) can resolve. Emma's points shift with penalty seed data; run POST /api/dev/run-penalties to re-apply.",
+  "rca_of_issue": "Soft-deleted task visibility RCA: DELETE /api/tasks/{id} updates `active:false` but `list_tasks` filter only uses family_id, so inactive tasks are still returned. Fix: change find query to {family_id: user['family_id'], active: {'$ne': False}} or {'active': True}."
+}
