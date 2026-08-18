@@ -18,6 +18,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [familyName, setFamilyName] = useState("");
   const [familyId, setFamilyId] = useState("");
+  const [parentMode, setParentMode] = useState<"new" | "join">("new");
   const [pin, setPin] = useState("");
   const [avatar, setAvatar] = useState<string>("🦸");
   const [err, setErr] = useState<string | null>(null);
@@ -32,7 +33,12 @@ export default function Register() {
       if (role === "parent") {
         if (!pin.match(/^\d{4}$/)) throw new Error("PIN à 4 chiffres requis");
         payload.pin = pin;
-        payload.family_name = familyName || `Famille de ${name}`;
+        if (parentMode === "new") {
+          payload.family_name = familyName || `Famille de ${name}`;
+        } else {
+          if (!familyId.trim()) throw new Error("Code famille requis pour rejoindre une famille");
+          payload.family_id = familyId.trim();
+        }
       } else {
         if (!familyId) throw new Error("Code famille requis pour un enfant");
         payload.family_id = familyId.trim();
@@ -92,9 +98,34 @@ export default function Register() {
 
             {role === "parent" ? (
               <>
-                <Text style={styles.label}>Nom de la famille</Text>
-                <TextInput testID="register-familyname-input" value={familyName} onChangeText={setFamilyName}
-                  placeholder="Famille Dupont" placeholderTextColor={T.onSurfaceMuted} style={styles.input} />
+                <Text style={styles.label}>Type de compte parent</Text>
+                <View style={styles.modeRow}>
+                  <Pressable testID="parent-mode-new" onPress={() => setParentMode("new")}
+                    style={[styles.modeChip, parentMode === "new" && styles.modeChipActive]}>
+                    <Text style={[styles.modeText, parentMode === "new" && styles.modeTextActive]}>🏠 Nouvelle famille</Text>
+                  </Pressable>
+                  <Pressable testID="parent-mode-join" onPress={() => setParentMode("join")}
+                    style={[styles.modeChip, parentMode === "join" && styles.modeChipActive]}>
+                    <Text style={[styles.modeText, parentMode === "join" && styles.modeTextActive]}>🤝 Rejoindre</Text>
+                  </Pressable>
+                </View>
+
+                {parentMode === "new" ? (
+                  <>
+                    <Text style={styles.label}>Nom de la famille</Text>
+                    <TextInput testID="register-familyname-input" value={familyName} onChangeText={setFamilyName}
+                      placeholder="Famille Dupont" placeholderTextColor={T.onSurfaceMuted} style={styles.input} />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.label}>{"Code famille (fourni par l'autre parent)"}</Text>
+                    <TextInput testID="register-parent-familyid-input" value={familyId} onChangeText={setFamilyId}
+                      placeholder="collez le code famille" placeholderTextColor={T.onSurfaceMuted}
+                      autoCapitalize="none" style={styles.input} />
+                    <Text style={styles.helper}>Vous aurez les mêmes droits que le parent qui a créé la famille.</Text>
+                  </>
+                )}
+
                 <Text style={styles.label}>Code PIN parent (4 chiffres)</Text>
                 <TextInput testID="register-pin-input" value={pin} onChangeText={setPin}
                   placeholder="1234" placeholderTextColor={T.onSurfaceMuted}
@@ -138,6 +169,12 @@ const styles = StyleSheet.create({
   roleTextActive: { color: T.white },
   card: { backgroundColor: T.white, padding: S.lg, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, gap: S.sm },
   label: { color: T.onSurface, fontWeight: "700", marginTop: S.sm, fontSize: 13 },
+  helper: { color: T.onSurfaceMuted, fontSize: 12, marginTop: S.xs, fontStyle: "italic" },
+  modeRow: { flexDirection: "row", gap: S.sm, marginTop: 4 },
+  modeChip: { flex: 1, paddingVertical: 12, borderRadius: R.pill, borderWidth: 2, borderColor: T.border, backgroundColor: T.white, alignItems: "center" },
+  modeChipActive: { backgroundColor: T.brand, borderColor: T.brandDark },
+  modeText: { fontWeight: "800", color: T.onSurface, fontSize: 13 },
+  modeTextActive: { color: T.white },
   input: { backgroundColor: T.surfaceSecondary, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: 14, fontSize: 16, color: T.onSurface, borderWidth: 2, borderColor: T.border },
   avatarRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm },
   avatarBtn: { width: 52, height: 52, borderRadius: R.md, backgroundColor: T.surfaceSecondary, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: T.border },

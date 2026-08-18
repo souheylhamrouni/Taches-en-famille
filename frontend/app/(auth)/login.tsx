@@ -65,7 +65,7 @@ export default function Login() {
 
             <Link href="/(auth)/register" asChild>
               <Pressable testID="go-register-button" style={styles.linkBtn}>
-                <Text style={styles.linkText}>Créer une famille</Text>
+                <Text style={styles.linkText}>Créer un compte</Text>
               </Pressable>
             </Link>
           </View>
