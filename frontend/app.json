@@ -18,7 +18,8 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.tachesenfamille.wlnd8j"
+      "package": "com.emergent.tachesenfamille.wlnd8j",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "192280798135",
+    "project_id": "taches-en-famille-c4ba4",
+    "storage_bucket": "taches-en-famille-c4ba4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:192280798135:android:86deecd590b94b6d937e32",
+        "android_client_info": {
+          "package_name": "com.emergent.tachesenfamille.wlnd8j"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIB_v7pjPzWgxQ6Loytrj0cL0VqSCkqx0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
