@@ -53,7 +53,7 @@ export default function ParentDashboard() {
         {family && (
           <Card testID="family-code-card">
             <Text style={s.cardTitle}>🏠 Code famille</Text>
-            <Text style={{ color: T.onSurfaceMuted, marginTop: 4 }}>Partagez ce code avec les enfants lors de l'inscription :</Text>
+            <Text style={{ color: T.onSurfaceMuted, marginTop: 4 }}>{"Partagez ce code avec les enfants lors de l'inscription :"}</Text>
             <View style={s.codeBox}>
               <Text style={s.codeText} selectable numberOfLines={1}>{family.id}</Text>
             </View>
@@ -80,6 +80,7 @@ export default function ParentDashboard() {
           <Text style={s.sectionTitle}>⚡ Raccourcis</Text>
           <View style={s.shortcuts}>
             <Shortcut icon="checkmark-done-circle" label="Valider" onPress={() => router.push("/shared/validate")} testID="short-validate" badge={pending.length} />
+            <Shortcut icon="flag" label="Défi" onPress={() => router.push("/shared/challenges")} testID="short-challenge" />
             <Shortcut icon="calendar" label="Calendrier" onPress={() => router.push("/shared/calendar")} testID="short-calendar" />
             <Shortcut icon="cart" label="Courses" onPress={() => router.push("/shared/shopping")} testID="short-shopping" />
           </View>
@@ -115,8 +116,8 @@ function StatBox({ label, value, color, onPress, testID }: any) {
 function Shortcut({ icon, label, onPress, testID, badge }: any) {
   return (
     <Pressable testID={testID} onPress={onPress} style={({ pressed }) => [s.shortcut, pressed && { opacity: 0.85 }]}>
-      <View style={s.shortIcon}><Ionicons name={icon} size={26} color={T.orange} /></View>
-      <Text style={s.shortLabel}>{label}</Text>
+      <View style={s.shortIcon}><Ionicons name={icon} size={24} color={T.orange} /></View>
+      <Text style={s.shortLabel} numberOfLines={1}>{label}</Text>
       {badge > 0 ? <View style={s.shortBadge}><Text style={s.shortBadgeText}>{badge}</Text></View> : null}
     </Pressable>
   );
@@ -135,9 +136,9 @@ const s = StyleSheet.create({
   rowName: { flex: 1, fontWeight: "800", color: T.onSurface },
   rowPts: { fontWeight: "800", color: T.brand },
   shortcuts: { flexDirection: "row", gap: S.sm },
-  shortcut: { flex: 1, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, alignItems: "center", gap: 4 },
-  shortIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFF3E0", alignItems: "center", justifyContent: "center" },
-  shortLabel: { fontWeight: "800", fontSize: 12, color: T.onSurface },
+  shortcut: { flex: 1, backgroundColor: T.white, padding: S.sm, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, alignItems: "center", gap: 4 },
+  shortIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFF3E0", alignItems: "center", justifyContent: "center" },
+  shortLabel: { fontWeight: "800", fontSize: 11, color: T.onSurface },
   shortBadge: { position: "absolute", top: 6, right: 6, backgroundColor: T.red, borderRadius: 10, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   shortBadgeText: { color: T.white, fontWeight: "900", fontSize: 11 },
   hint: { color: T.onSurfaceMuted, textAlign: "center", padding: S.sm },

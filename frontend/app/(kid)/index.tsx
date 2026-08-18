@@ -15,13 +15,15 @@ export default function KidHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [top, setTop] = useState<any[]>([]);
   const [badges, setBadges] = useState<{ unlocked_count: number; total: number; list: any[] }>({ unlocked_count: 0, total: 0, list: [] });
+  const [challenge, setChallenge] = useState<any>(null);
 
   const load = useCallback(async () => {
     try {
-      const [t, lb, bg] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard"), api.get("/badges")]);
+      const [t, lb, bg, ch] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard"), api.get("/badges"), api.get("/challenges")]);
       setTasks(t.tasks || []);
       setTop((lb.members || []).slice(0, 3));
       setBadges({ unlocked_count: bg.unlocked_count || 0, total: bg.total || 0, list: (bg.badges || []).filter((b: any) => b.unlocked).slice(-4) });
+      setChallenge(ch.challenge || null);
       await refresh();
     } catch {}
   }, [refresh]);
@@ -69,6 +71,23 @@ export default function KidHome() {
               todoCount > 0 ? `⏰ ${todoCount} tâche(s) avant 20h` : "Aucune tâche pour aujourd'hui"}
           </Text>
         </Card>
+
+        {challenge && (
+          <Pressable testID="challenge-banner" onPress={() => router.push("/shared/challenges")}
+            style={({ pressed }) => [s.challengeBanner, challenge.status === "completed" && s.challengeDone, pressed && { opacity: 0.9 }]}>
+            <Text style={{ fontSize: 34 }}>{challenge.status === "completed" ? "🏆" : "🎯"}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.challengeTitle}>Défi : {challenge.title}</Text>
+              <View style={s.challengeTrack}>
+                <View style={[s.challengeFill, { width: `${Math.min(100, Math.round((challenge.percent || 0) * 100))}%`, backgroundColor: challenge.status === "completed" ? T.gold : T.white }]} />
+              </View>
+              <Text style={s.challengeSub}>
+                {challenge.progress}/{challenge.target} {challenge.metric === "points" ? "points" : "tâches"} · bonus +{challenge.bonus_points}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color={T.white} />
+          </Pressable>
+        )}
 
         <View>
           <Text style={s.sectionTitle}>🎯 À faire maintenant</Text>
@@ -149,6 +168,12 @@ const s = StyleSheet.create({
   hint: { color: T.onSurfaceMuted, marginTop: S.sm, fontWeight: "600", fontSize: 13 },
   sectionTitle: { fontSize: 18, fontWeight: "900", color: T.onSurface, marginBottom: S.sm },
   seeAll: { color: T.brand, fontWeight: "800", fontSize: 13 },
+  challengeBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.brand, borderRadius: R.lg, padding: S.md, borderBottomWidth: 4, borderBottomColor: T.brandDark },
+  challengeDone: { backgroundColor: T.orange, borderBottomColor: "#C77500" },
+  challengeTitle: { color: T.white, fontWeight: "900", fontSize: 15 },
+  challengeTrack: { height: 10, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: R.pill, overflow: "hidden", marginVertical: 6 },
+  challengeFill: { height: "100%", borderRadius: R.pill },
+  challengeSub: { color: T.white, fontWeight: "700", fontSize: 12, opacity: 0.95 },
   badgeChip: { flex: 1, alignItems: "center", gap: 4 },
   badgeChipText: { fontSize: 11, fontWeight: "800", color: T.onSurface, textAlign: "center" },
   taskRow: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, marginBottom: S.sm },

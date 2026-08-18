@@ -14,6 +14,7 @@ export default function More() {
   const [showDelete, setShowDelete] = useState(false);
 
   const links = [
+    { id: "challenges", label: "Défi familial", icon: "flag" as const, path: "/shared/challenges" },
     { id: "badges", label: "Mes badges", icon: "ribbon" as const, path: "/shared/badges" },
     { id: "calendar", label: "Calendrier familial", icon: "calendar" as const, path: "/shared/calendar" },
     { id: "shopping", label: "Liste de courses", icon: "cart" as const, path: "/shared/shopping" },
