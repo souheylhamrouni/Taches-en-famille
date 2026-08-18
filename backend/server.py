@@ -200,6 +200,7 @@ class EventCreate(BaseModel):
     end_time: Optional[str] = None
     assigned_users: List[str] = []
     color: Optional[str] = "#58CC02"
+    recurrence: Literal["none", "weekly"] = "none"
 
 class ShoppingCreate(BaseModel):
     item_name: str
@@ -767,10 +768,40 @@ async def list_claims(user=Depends(current_user)):
 
 
 # -------- Calendar --------
+def _expand_events(events: list) -> list:
+    """Expand weekly-recurring events into individual occurrences within a window."""
+    win_start = now() - timedelta(weeks=8)
+    win_end = now() + timedelta(weeks=26)
+    out = []
+    for e in events:
+        rec = e.get("recurrence", "none")
+        try:
+            base = datetime.fromisoformat(e["start_time"])
+        except Exception:
+            out.append({**e, "occ_id": f"{e['id']}:{e.get('start_time','')}"})
+            continue
+        if base.tzinfo is None:
+            base = base.replace(tzinfo=timezone.utc)
+        if rec != "weekly":
+            out.append({**e, "occ_id": f"{e['id']}:{e['start_time']}"})
+            continue
+        occ = base
+        step = timedelta(weeks=1)
+        guard = 0
+        while occ <= win_end and guard < 400:
+            if occ >= win_start:
+                out.append({**e, "start_time": occ.isoformat(),
+                            "occ_id": f"{e['id']}:{occ.isoformat()}", "is_occurrence": True})
+            occ = occ + step
+            guard += 1
+    out.sort(key=lambda x: x["start_time"])
+    return out
+
+
 @api.get("/events")
 async def list_events(user=Depends(current_user)):
     events = await db.events.find({"family_id": user["family_id"]}, {"_id": 0}).sort("start_time", 1).to_list(500)
-    return {"events": events}
+    return {"events": _expand_events(events)}
 
 
 @api.post("/events")
@@ -781,7 +812,8 @@ async def create_event(body: EventCreate, user=Depends(current_user)):
     # notify family
     fam = await db.users.find({"family_id": user["family_id"]}, {"id": 1, "_id": 0}).to_list(50)
     others = [u["id"] for u in fam if u["id"] != user["id"]]
-    await send_push(others, {"title": "Nouvel événement 📅", "message": body.title})
+    label = body.title + (" (chaque semaine)" if body.recurrence == "weekly" else "")
+    await send_push(others, {"title": "Nouvel événement 📅", "message": label})
     e.pop("_id", None)
     return e
 

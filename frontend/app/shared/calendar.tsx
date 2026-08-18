@@ -33,6 +33,7 @@ export default function Calendar() {
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState("");
   const [color, setColor] = useState("#58CC02");
+  const [weekly, setWeekly] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -87,8 +88,8 @@ export default function Calendar() {
     try {
       const base = selected ? new Date(selected + "T09:00:00") : new Date();
       const start = when ? new Date(when).toISOString() : base.toISOString();
-      await api.post("/events", { title, start_time: start, color });
-      setTitle(""); setWhen(""); setColor("#58CC02"); setOpenAdd(false); await load();
+      await api.post("/events", { title, start_time: start, color, recurrence: weekly ? "weekly" : "none" });
+      setTitle(""); setWhen(""); setColor("#58CC02"); setWeekly(false); setOpenAdd(false); await load();
     } catch (e: any) { setErr(e.message); }
   };
 
@@ -165,13 +166,21 @@ export default function Calendar() {
         {listEvents.length === 0
           ? <EmptyState emoji="📅" title={selected ? "Aucun événement ce jour" : "Aucun événement ce mois-ci"} subtitle="Ajoute-en un avec le +" />
           : listEvents.map(e => (
-            <View key={e.id} style={s.eventRow} testID={`event-${e.id}`}>
+            <View key={e.occ_id || e.id} style={s.eventRow} testID={`event-${e.occ_id || e.id}`}>
               <View style={[s.stripe, { backgroundColor: e.color || T.brand }]} />
               <View style={{ flex: 1 }}>
-                <Text style={s.eTitle}>{e.title}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={s.eTitle}>{e.title}</Text>
+                  {e.recurrence === "weekly" && (
+                    <View style={s.recurBadge}>
+                      <Ionicons name="repeat" size={11} color={T.brandDark} />
+                      <Text style={s.recurText}>Hebdo</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={s.eSub}>📅 {fmtLong(e.start_time)} · {fmtTime(e.start_time)}</Text>
               </View>
-              <Pressable testID={`del-event-${e.id}`} onPress={async () => { await api.del(`/events/${e.id}`); await load(); }}>
+              <Pressable testID={`del-event-${e.occ_id || e.id}`} onPress={async () => { await api.del(`/events/${e.id}`); await load(); }}>
                 <Ionicons name="trash-outline" size={20} color={T.onSurfaceMuted} />
               </Pressable>
             </View>
@@ -194,6 +203,15 @@ export default function Calendar() {
                   style={[s.colorDot, { backgroundColor: c }, color === c && s.colorDotActive]} />
               ))}
             </View>
+            <Pressable testID="recurrence-toggle" onPress={() => setWeekly(w => !w)} style={s.recurRow}>
+              <View style={s.recurLeft}>
+                <Ionicons name="repeat" size={20} color={T.brand} />
+                <Text style={s.recurLabel}>Répéter chaque semaine</Text>
+              </View>
+              <View style={[s.toggle, weekly && s.toggleOn]}>
+                <View style={[s.knob, weekly && s.knobOn]} />
+              </View>
+            </Pressable>
             {err ? <Text style={{ color: T.red, fontWeight: "700", marginTop: S.sm }}>{err}</Text> : null}
             <View style={{ flexDirection: "row", gap: S.sm, marginTop: S.md }}>
               <Pressable style={s.cancelBtn} onPress={() => setOpenAdd(false)}><Text style={{ fontWeight: "800", color: T.onSurfaceMuted }}>Annuler</Text></Pressable>
@@ -236,6 +254,8 @@ const s = StyleSheet.create({
   stripe: { width: 6, height: 40, borderRadius: 3 },
   eTitle: { fontWeight: "900", color: T.onSurface, fontSize: 15 },
   eSub: { color: T.onSurfaceMuted, fontSize: 13, marginTop: 2, textTransform: "capitalize" },
+  recurBadge: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#EFFBE0", paddingHorizontal: 6, paddingVertical: 2, borderRadius: R.pill },
+  recurText: { color: T.brandDark, fontWeight: "800", fontSize: 10 },
 
   mBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(26,26,26,0.6)" },
   mCard: { backgroundColor: T.white, padding: S.lg, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, gap: S.sm },
@@ -244,6 +264,13 @@ const s = StyleSheet.create({
   label: { fontWeight: "800", color: T.onSurface, fontSize: 13, marginTop: S.sm },
   colorDot: { width: 36, height: 36, borderRadius: 18, borderWidth: 3, borderColor: "transparent" },
   colorDotActive: { borderColor: T.onSurface },
+  recurRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: T.surfaceSecondary, padding: S.md, borderRadius: R.md, marginTop: S.md, borderWidth: 2, borderColor: T.border },
+  recurLeft: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  recurLabel: { fontWeight: "800", color: T.onSurface, fontSize: 14 },
+  toggle: { width: 48, height: 28, borderRadius: 14, backgroundColor: T.borderStrong, padding: 3, justifyContent: "center" },
+  toggleOn: { backgroundColor: T.brand },
+  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: T.white },
+  knobOn: { alignSelf: "flex-end" },
   cancelBtn: { flex: 1, padding: 12, borderRadius: R.pill, alignItems: "center", backgroundColor: T.surfaceSecondary },
   saveBtn: { flex: 1, padding: 12, borderRadius: R.pill, alignItems: "center", backgroundColor: T.brand, borderBottomWidth: 3, borderBottomColor: T.brandDark },
 });
