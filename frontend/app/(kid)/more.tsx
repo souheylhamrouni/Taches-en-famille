@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -5,10 +6,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 import { ScreenHeader } from "@/src/components/UI";
+import DeleteAccountModal from "@/src/components/DeleteAccountModal";
 
 export default function More() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [showDelete, setShowDelete] = useState(false);
 
   const links = [
     { id: "calendar", label: "Calendrier familial", icon: "calendar" as const, path: "/shared/calendar" },
@@ -33,7 +36,12 @@ export default function More() {
           <Ionicons name="log-out-outline" size={20} color={T.red} />
           <Text style={s.logoutText}>Se déconnecter</Text>
         </Pressable>
+        <Pressable testID="delete-account-button" onPress={() => setShowDelete(true)} style={({ pressed }) => [s.deleteRow, pressed && { opacity: 0.85 }]}>
+          <Ionicons name="trash-outline" size={18} color={T.onSurfaceMuted} />
+          <Text style={s.deleteText}>Supprimer mon compte</Text>
+        </Pressable>
       </ScrollView>
+      <DeleteAccountModal visible={showDelete} onCancel={() => setShowDelete(false)} />
     </SafeAreaView>
   );
 }
@@ -44,4 +52,6 @@ const s = StyleSheet.create({
   rowLabel: { flex: 1, fontWeight: "800", color: T.onSurface, fontSize: 15 },
   logout: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, padding: S.md, borderRadius: R.pill, backgroundColor: "#FFECEC", borderWidth: 2, borderColor: T.red },
   logoutText: { color: T.red, fontWeight: "900" },
+  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.xs, padding: S.md, marginTop: S.sm },
+  deleteText: { color: T.onSurfaceMuted, fontWeight: "700", fontSize: 13, textDecorationLine: "underline" },
 });

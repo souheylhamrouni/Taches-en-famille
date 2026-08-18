@@ -1,0 +1,44 @@
+{
+  "summary": "Backend-only verification of the NEW DELETE /api/auth/account endpoint. 36/36 tests pass (24 existing backend_test + 6 tasks regression + 6 new delete-account tests). Verified: (1) missing JWT returns 401; (2) wrong password returns 401 and the user + JWT still work afterward; (3) solo-family delete cascades — response returns family_deleted=true, the family + shared tasks/rewards/events/shopping/completions/penalties/claims are all wiped, subsequent login with the same email returns 401 and the previous JWT no longer resolves via /auth/me; (4) multi-member delete leaves the family intact — response returns family_deleted=false, GET /api/family excludes the deleted member, remaining parent still logs in, deleted child login returns 401; (5) demo accounts (papa@demo.fr, lea@demo.fr) still log in and GET /api/tasks returns Léa's tasks with today_status populated. No demo data was disturbed — all deletion tests use freshly-registered TEST_ users. Minor observation: backend lowercases emails on register (register+auth/me case-normalize) — not a bug, but test assertions were made case-insensitive.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register + GET /api/auth/me", "issue": "Emails are silently normalized to lowercase on storage. Client-provided casing is not preserved. Not a bug for this feature, but worth documenting so UI can display the normalized value."},
+      {"endpoint": "GET /api/photos/{path}", "issue": "Optional `token` query param declared but ignored; RN <Image> on web can't send Authorization headers → proof photos may 401 in browser preview. (Pre-existing.)"},
+      {"endpoint": "backend startup", "issue": "Uses deprecated FastAPI @app.on_event handlers. Prefer lifespan context manager. (Pre-existing.)"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_delete_account.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_tasks_regression.py",
+    "/app/test_reports/pytest/pytest_iteration3.xml"
+  ],
+  "action_items": [
+    "No action needed for account-deletion feature — endpoint behaves per spec (password verify, cascade only when family becomes empty, correct family_deleted flag).",
+    "(Carry-over) Honor `?token=` in GET /api/photos/{path} so RN <Image> on web preview can render proofs.",
+    "(Carry-over) Migrate FastAPI startup/shutdown handlers to lifespan context manager."
+  ],
+  "critical_code_review_comments": [
+    "delete_account (server.py:273-291) correctly re-fetches the user doc to run passwords.verify against the current password_hash — does not trust the JWT alone.",
+    "Cascade order is correct: user + personal records (completions/penalties/claims by user_id) are removed FIRST, then remaining member count is recomputed on users collection to decide family_deleted. Race is unlikely at family-scale traffic.",
+    "When family becomes empty, all family-scoped collections (tasks, rewards, events, shopping, completions, penalties, claims) are deleted by family_id — no orphan documents left behind.",
+    "Response body {ok, family_deleted} is minimal and matches what the DeleteAccountModal expects.",
+    "One improvement to consider (not blocking): after successful deletion, the caller's JWT remains valid for its exp window against /auth/me — but /auth/me raises 401 because the user doc is gone (verified in test). So there is no practical session-leak."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_delete_account.py (new — 6 focused tests for DELETE /api/auth/account)"
+  ],
+  "success_rate": {"backend": "100% (36/36)", "frontend": "not tested (backend-only run)"},
+  "seed_data_creation": "All temp users are registered with TEST_del_<uuid>@ex.com prefix and are deleted at the end of each test (either as the assertion itself or as explicit teardown). No residual TEST_ users or families are left in the DB. Demo accounts (papa/lea/hugo/emma@demo.fr) were only used for read-only login/tasks regression and were NOT deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DELETE /api/auth/account is fully covered in /app/backend/tests/test_delete_account.py — reuse for regression. Full suite runs in ~7s (pytest-xdist, 2 workers). Note: test_tasks_regression.py reads EXPO_PUBLIC_BACKEND_URL as a required env var and errors on collection if unset — export it before running that file standalone. backend_test.py and test_delete_account.py both have a safe default fallback.",
+  "rca_of_issue": "N/A — feature works as specified. No production bug found."
+}

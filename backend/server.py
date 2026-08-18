@@ -169,6 +169,9 @@ class LoginBody(BaseModel):
 class PinBody(BaseModel):
     pin: str = Field(pattern=r"^\d{4}$")
 
+class DeleteAccountBody(BaseModel):
+    password: str
+
 class SetPushToken(BaseModel):
     user_id: str
     platform: str
@@ -265,6 +268,27 @@ async def login(body: LoginBody):
 @api.get("/auth/me")
 async def me(user=Depends(current_user)):
     return user
+
+
+@api.delete("/auth/account")
+async def delete_account(body: DeleteAccountBody, user=Depends(current_user)):
+    doc = await db.users.find_one({"id": user["id"]})
+    if not doc or not passwords.verify(body.password, doc["password_hash"]):
+        raise HTTPException(401, "Mot de passe incorrect")
+    fam_id = user["family_id"]
+    # Remove the member and their personal records.
+    await db.users.delete_one({"id": user["id"]})
+    await db.completions.delete_many({"user_id": user["id"]})
+    await db.penalties.delete_many({"user_id": user["id"]})
+    await db.claims.delete_many({"user_id": user["id"]})
+    # If the family is now empty, wipe all its shared data too.
+    remaining = await db.users.count_documents({"family_id": fam_id})
+    if remaining == 0:
+        await db.families.delete_one({"id": fam_id})
+        for coll in (db.tasks, db.rewards, db.events, db.shopping,
+                     db.completions, db.penalties, db.claims):
+            await coll.delete_many({"family_id": fam_id})
+    return {"ok": True, "family_deleted": remaining == 0}
 
 
 @api.post("/auth/pin/verify")

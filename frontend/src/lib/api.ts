@@ -29,7 +29,7 @@ export const api = {
   get: <T=any>(p: string) => request<T>(p),
   post: <T=any>(p: string, body?: any) => request<T>(p, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   patch: <T=any>(p: string, body?: any) => request<T>(p, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  del: <T=any>(p: string) => request<T>(p, { method: "DELETE" }),
+  del: <T=any>(p: string, body?: any) => request<T>(p, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
   upload: async <T=any>(p: string, form: FormData): Promise<T> => {
     const token = await storage.get("access_token");
     const pinToken = await storage.get("parent_pin_token");
@@ -69,6 +69,11 @@ export async function clearPin() {
 export async function logout() {
   await storage.del("access_token");
   await storage.del("parent_pin_token");
+}
+
+export async function deleteAccount(password: string) {
+  await api.del("/auth/account", { password });
+  await logout();
 }
 
 export function photoUrl(path: string | null | undefined) {

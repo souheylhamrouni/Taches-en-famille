@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="6" time="2.000" timestamp="2026-08-18T17:47:35.350747+00:00" hostname="agent-env-42d1e119-b683-4328-8496-7e112ad7afe8"><testcase classname="tests.test_delete_account.TestDemoAccountsIntact" name="test_demo_parent_login_still_works" time="0.373" /><testcase classname="tests.test_delete_account.TestDeleteAccountAuth" name="test_delete_requires_jwt" time="0.296" /><testcase classname="tests.test_delete_account.TestDeleteAccountAuth" name="test_wrong_password_returns_401_and_preserves_user" time="0.426"><failure message="AssertionError: assert 'test_del_a0931a6f@ex.com' == 'TEST_del_a0931a6f@ex.com'&#10;  &#10;  - TEST_del_a0931a6f@ex.com&#10;  ? ^^^^&#10;  + test_del_a0931a6f@ex.com&#10;  ? ^^^^">backend/tests/test_delete_account.py:105: in test_wrong_password_returns_401_and_preserves_user
+    assert me.json()["email"] == ctx["email"]
+E   AssertionError: assert 'test_del_a0931a6f@ex.com' == 'TEST_del_a0931a6f@ex.com'
+E     
+E     - TEST_del_a0931a6f@ex.com
+E     ? ^^^^
+E     + test_del_a0931a6f@ex.com
+E     ? ^^^^</failure></testcase><testcase classname="tests.test_delete_account.TestDemoAccountsIntact" name="test_demo_kid_login_and_tasks" time="0.192" /><testcase classname="tests.test_delete_account.TestDeleteAccountMultiMember" name="test_only_caller_deleted_when_others_remain" time="0.557"><failure message="AssertionError: assert 'TEST_del_917f8708@ex.com' in ['test_del_917f8708@ex.com']">backend/tests/test_delete_account.py:226: in test_only_caller_deleted_when_others_remain
+    assert parent["email"] in emails
+E   AssertionError: assert 'TEST_del_917f8708@ex.com' in ['test_del_917f8708@ex.com']</failure></testcase><testcase classname="tests.test_delete_account.TestDeleteAccountSoloFamily" name="test_solo_user_delete_cascades_family" time="0.921" /></testsuite></testsuites>
