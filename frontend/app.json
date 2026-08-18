@@ -32,11 +32,15 @@
       "expo-secure-store",
       [
         "expo-camera",
-        { "cameraPermission": "Prendre des photos de vos tâches accomplies" }
+        {
+          "cameraPermission": "Prendre des photos de vos tâches accomplies"
+        }
       ],
       [
         "expo-image-picker",
-        { "photosPermission": "Ajouter une preuve depuis vos photos" }
+        {
+          "photosPermission": "Ajouter une preuve depuis vos photos"
+        }
       ],
       [
         "expo-splash-screen",
@@ -46,7 +50,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#58CC02"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

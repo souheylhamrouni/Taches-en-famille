@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -14,12 +14,14 @@ export default function KidHome() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [top, setTop] = useState<any[]>([]);
+  const [badges, setBadges] = useState<{ unlocked_count: number; total: number; list: any[] }>({ unlocked_count: 0, total: 0, list: [] });
 
   const load = useCallback(async () => {
     try {
-      const [t, lb] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard")]);
+      const [t, lb, bg] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard"), api.get("/badges")]);
       setTasks(t.tasks || []);
       setTop((lb.members || []).slice(0, 3));
+      setBadges({ unlocked_count: bg.unlocked_count || 0, total: bg.total || 0, list: (bg.badges || []).filter((b: any) => b.unlocked).slice(-4) });
       await refresh();
     } catch {}
   }, [refresh]);
@@ -91,6 +93,31 @@ export default function KidHome() {
         </View>
 
         <View>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm }}>
+            <Text style={s.sectionTitle}>🏅 Mes badges</Text>
+            <Pressable testID="see-all-badges" onPress={() => router.push("/shared/badges")}>
+              <Text style={s.seeAll}>Voir tout ({badges.unlocked_count}/{badges.total})</Text>
+            </Pressable>
+          </View>
+          <Pressable testID="badges-card" onPress={() => router.push("/shared/badges")}>
+            <Card>
+              {badges.list.length === 0 ? (
+                <Text style={s.hint}>Termine des tâches pour gagner tes premiers badges !</Text>
+              ) : (
+                <View style={{ flexDirection: "row", gap: S.md }}>
+                  {badges.list.map((b: any) => (
+                    <View key={b.id} style={s.badgeChip}>
+                      <Text style={{ fontSize: 34 }}>{b.emoji}</Text>
+                      <Text style={s.badgeChipText} numberOfLines={1}>{b.title}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </Card>
+          </Pressable>
+        </View>
+
+        <View>
           <Text style={s.sectionTitle}>🏆 Podium hebdomadaire</Text>
           <Card>
             {top.length === 0 ? <Text style={s.hint}>Pas encore de classement</Text> : (
@@ -121,6 +148,9 @@ const s = StyleSheet.create({
   progressFill: { height: "100%", backgroundColor: T.brand, borderRadius: R.pill },
   hint: { color: T.onSurfaceMuted, marginTop: S.sm, fontWeight: "600", fontSize: 13 },
   sectionTitle: { fontSize: 18, fontWeight: "900", color: T.onSurface, marginBottom: S.sm },
+  seeAll: { color: T.brand, fontWeight: "800", fontSize: 13 },
+  badgeChip: { flex: 1, alignItems: "center", gap: 4 },
+  badgeChipText: { fontSize: 11, fontWeight: "800", color: T.onSurface, textAlign: "center" },
   taskRow: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, marginBottom: S.sm },
   taskIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFFBE0", alignItems: "center", justifyContent: "center" },
   taskTitle: { fontWeight: "800", color: T.onSurface, fontSize: 15 },

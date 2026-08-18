@@ -7,6 +7,7 @@ import { api, storage, BACKEND_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 import { EmptyState } from "@/src/components/UI";
+import { useCelebration } from "@/src/hooks/use-celebration";
 
 export default function ValidateFeed() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export default function ValidateFeed() {
   const [items, setItems] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [token, setToken] = useState<string>("");
+  const celebrate = useCelebration();
 
   const load = useCallback(async () => {
     try {
@@ -27,7 +29,7 @@ export default function ValidateFeed() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const vote = async (id: string, approved: boolean) => {
-    try { await api.post(`/completions/${id}/vote`, { approved }); await load(); } catch {}
+    try { await api.post(`/completions/${id}/vote`, { approved }); if (approved) celebrate(); await load(); } catch {}
   };
 
   return (

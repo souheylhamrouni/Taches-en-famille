@@ -8,6 +8,8 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
+import { useCelebration } from "@/src/hooks/use-celebration";
+import BadgeUnlockModal from "@/src/components/BadgeUnlockModal";
 
 const FILTERS = [
   { id: "todo", label: "À faire" },
@@ -23,6 +25,8 @@ export default function KidTasks() {
   const [filter, setFilter] = useState<string>("todo");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [newBadges, setNewBadges] = useState<any[]>([]);
+  const celebrate = useCelebration();
 
   const load = useCallback(async () => {
     try { const t = await api.get("/tasks"); setTasks(t.tasks || []); } catch {}
@@ -57,9 +61,14 @@ export default function KidTasks() {
           form.append("photo", { uri: asset.uri, name, type } as any);
         }
       }
-      await api.upload(`/tasks/${t.id}/complete`, form);
-      setFlash("✅ Bravo ! En attente de validation famille");
+      const res = await api.upload(`/tasks/${t.id}/complete`, form);
+      celebrate();
+      const status = res?.status;
+      setFlash(status === "approved"
+        ? `🎉 Bravo ! +${t.points_worth} points`
+        : "✅ Preuve envoyée ! En attente de validation famille");
       setTimeout(() => setFlash(null), 3000);
+      if (res?.new_badges?.length) setNewBadges(res.new_badges);
       await load();
       await refresh();
     } catch (e: any) {
@@ -131,6 +140,7 @@ export default function KidTasks() {
           </Card>
         ))}
       </ScrollView>
+      <BadgeUnlockModal badges={newBadges} onClose={() => setNewBadges([])} />
     </SafeAreaView>
   );
 }

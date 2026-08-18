@@ -240,6 +240,9 @@ async def register(body: Register):
         "avatar": body.avatar or ("🦸" if body.role == "parent" else "🐻"),
         "points": 0,
         "streak": 0,
+        "total_earned": 0,
+        "tasks_completed": 0,
+        "badges_unlocked": [],
         "last_streak_date": None,
         "push_token": None,
         "created_at": now(),
@@ -436,8 +439,9 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
     await db.completions.insert_one(comp)
 
     # if auto approve (no photo required), award immediately
+    new_badges = []
     if comp["status"] == "approved":
-        await _award(user["id"], task["points_worth"])
+        new_badges = await _award(user["id"], task["points_worth"])
     else:
         # notify family for vote
         fam = await db.users.find({"family_id": user["family_id"]}, {"id": 1, "_id": 0}).to_list(50)
@@ -449,13 +453,14 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         })
 
     comp.pop("_id", None)
+    comp["new_badges"] = new_badges
     return comp
 
 
 async def _award(user_id: str, pts: int):
     u = await db.users.find_one({"id": user_id})
     if not u:
-        return
+        return []
     today_key = date.today().isoformat()
     last = u.get("last_streak_date")
     yesterday_key = (date.today() - timedelta(days=1)).isoformat()
@@ -466,9 +471,71 @@ async def _award(user_id: str, pts: int):
     else:
         streak = 1
     await db.users.update_one({"id": user_id}, {
-        "$inc": {"points": pts},
+        "$inc": {"points": pts, "total_earned": pts, "tasks_completed": 1},
         "$set": {"streak": streak, "last_streak_date": today_key},
     })
+    # Unlock badges based on the fresh stats.
+    fresh = await db.users.find_one({"id": user_id})
+    newly = await _unlock_badges(fresh)
+    if newly:
+        await send_push([user_id], {
+            "title": "Nouveau badge débloqué ! 🏅",
+            "message": " ".join(f"{b['emoji']} {b['title']}" for b in newly),
+        })
+    return newly
+
+
+# -------- Badges --------
+BADGES = [
+    {"id": "first_quest", "title": "Première quête", "emoji": "🌱", "description": "Termine ta première tâche", "type": "tasks", "threshold": 1},
+    {"id": "getting_started", "title": "Sur la bonne voie", "emoji": "⭐", "description": "Termine 5 tâches", "type": "tasks", "threshold": 5},
+    {"id": "task_machine", "title": "Machine à tâches", "emoji": "🤖", "description": "Termine 20 tâches", "type": "tasks", "threshold": 20},
+    {"id": "task_legend", "title": "Légende des corvées", "emoji": "👑", "description": "Termine 50 tâches", "type": "tasks", "threshold": 50},
+    {"id": "streak_3", "title": "En feu", "emoji": "🔥", "description": "Série de 3 jours", "type": "streak", "threshold": 3},
+    {"id": "streak_7", "title": "Inarrêtable", "emoji": "⚡", "description": "Série de 7 jours", "type": "streak", "threshold": 7},
+    {"id": "streak_30", "title": "Champion du mois", "emoji": "🏆", "description": "Série de 30 jours", "type": "streak", "threshold": 30},
+    {"id": "earn_100", "title": "Premiers sous", "emoji": "💰", "description": "Gagne 100 points au total", "type": "earned", "threshold": 100},
+    {"id": "earn_500", "title": "Petite fortune", "emoji": "💎", "description": "Gagne 500 points au total", "type": "earned", "threshold": 500},
+    {"id": "earn_1000", "title": "Trésor royal", "emoji": "🏰", "description": "Gagne 1000 points au total", "type": "earned", "threshold": 1000},
+]
+
+
+def _badge_stats(u: dict) -> dict:
+    return {
+        "tasks": u.get("tasks_completed", 0),
+        "streak": u.get("streak", 0),
+        "earned": u.get("total_earned", 0),
+    }
+
+
+async def _unlock_badges(u: dict):
+    """Persist and return badge defs newly unlocked for user doc `u`."""
+    stats = _badge_stats(u)
+    already = set(u.get("badges_unlocked", []))
+    newly = [b for b in BADGES if b["id"] not in already and stats[b["type"]] >= b["threshold"]]
+    if newly:
+        await db.users.update_one({"id": u["id"]},
+                                  {"$addToSet": {"badges_unlocked": {"$each": [b["id"] for b in newly]}}})
+    return newly
+
+
+@api.get("/badges")
+async def get_badges(user=Depends(current_user)):
+    doc = await db.users.find_one({"id": user["id"]})
+    await _unlock_badges(doc)  # retroactively unlock based on current stats
+    doc = await db.users.find_one({"id": user["id"]})
+    unlocked = set(doc.get("badges_unlocked", []))
+    stats = _badge_stats(doc)
+    out = []
+    for b in BADGES:
+        cur = stats[b["type"]]
+        out.append({
+            **b,
+            "unlocked": b["id"] in unlocked,
+            "current": cur,
+            "progress": min(1.0, cur / b["threshold"]) if b["threshold"] else 1.0,
+        })
+    return {"badges": out, "unlocked_count": len(unlocked & {b["id"] for b in BADGES}), "total": len(BADGES)}
 
 
 @api.get("/completions/pending")
@@ -736,9 +803,9 @@ async def seed_demo():
 
     users_to_create = [
         {"email": "papa@demo.fr", "name": "Papa", "role": "parent", "pin": "1234", "avatar": "🦸"},
-        {"email": "lea@demo.fr", "name": "Léa", "role": "child", "avatar": "🐻", "points": 320, "streak": 5},
-        {"email": "hugo@demo.fr", "name": "Hugo", "role": "child", "avatar": "🦊", "points": 210, "streak": 3},
-        {"email": "emma@demo.fr", "name": "Emma", "role": "child", "avatar": "🐼", "points": 150, "streak": 2},
+        {"email": "lea@demo.fr", "name": "Léa", "role": "child", "avatar": "🐻", "points": 320, "streak": 5, "total_earned": 560, "tasks_completed": 22},
+        {"email": "hugo@demo.fr", "name": "Hugo", "role": "child", "avatar": "🦊", "points": 210, "streak": 3, "total_earned": 310, "tasks_completed": 12},
+        {"email": "emma@demo.fr", "name": "Emma", "role": "child", "avatar": "🐼", "points": 150, "streak": 2, "total_earned": 180, "tasks_completed": 6},
     ]
     ids = {}
     for u in users_to_create:
@@ -749,6 +816,8 @@ async def seed_demo():
             "family_id": fam_id, "avatar": u["avatar"],
             "password_hash": passwords.hash("demo1234"),
             "points": u.get("points", 0), "streak": u.get("streak", 0),
+            "total_earned": u.get("total_earned", 0), "tasks_completed": u.get("tasks_completed", 0),
+            "badges_unlocked": [],
             "last_streak_date": date.today().isoformat() if u.get("streak") else None,
             "created_at": now(),
         }

@@ -40,9 +40,10 @@ function AuthedGate() {
     const inAuth = segments[0] === "(auth)";
     const inKid = segments[0] === "(kid)";
     const inParent = segments[0] === "(parent)";
+    const inShared = segments[0] === "shared";
     if (!user && !inAuth) {
       router.replace("/(auth)/login");
-    } else if (user) {
+    } else if (user && !inShared) {
       if (user.role === "parent" && !inParent) router.replace("/(parent)");
       if (user.role === "child" && !inKid) router.replace("/(kid)");
     }

@@ -1,0 +1,51 @@
+{
+  "summary": "Full backend + frontend pass for the NEW badges + celebration feature. Backend: 46/46 pass (10 brand-new badge tests in test_badges.py + 36 existing). Verified: (1) GET /api/badges returns 10 badges with correct shape (id/title/emoji/description/type/threshold/unlocked/current/progress) and Léa (lea@demo.fr) has exactly the 6 expected unlocks {first_quest, getting_started, task_machine, streak_3, earn_100, earn_500}; (2) fresh child registered in a brand-new family gets 'first_quest' back in new_badges of POST /api/tasks/{id}/complete on their first non-photo completion, and tasks_completed/total_earned/points all increment by the task's points_worth; (3) photo task completion returns status='pending' and new_badges=[] (empty) so no premature unlock; (4) vote-approval path: fresh parent approves a fresh child's pending photo submission → child's stats increment AND badge (first_quest) unlocks and is persisted, visible on next GET /api/badges; (5) full regression (demo logins, tasks, delete-account, leaderboard, rewards, calendar, shopping, penalties, push) still green. Frontend: 1 CRITICAL navigation bug fixed by testing agent (see rca_of_issue) — the auth gate was redirecting kids and parents away from every /shared/* route so /shared/badges, /shared/calendar, /shared/shopping, /shared/validate were unreachable via any tap. After a 1-line fix in app/_layout.tsx, all badge UI works: Kid Accueil shows 'Mes badges' section with 'Voir tout (6/10)' + 4 preview tiles, tapping opens /shared/badges with 10-tile grid (6 unlocked/gold with 'Débloqué' pill, 4 locked with 🔒 + progress bar + current/threshold like 27/50, 1/7, 1/30, 27/1000), 'Mes badges' link in Plus tab works. Task completion on Tâches tab shows '🎉 Bravo ! +10 points' flash that auto-clears after 3s, no runtime error (expo-audio call succeeds — audio itself not audible in headless webkit).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/photos/{path}", "issue": "(Carry-over) `?token=` query param declared but ignored — RN <Image> on web preview cannot send Authorization header so proof photos may 401 in browser."},
+      {"endpoint": "backend startup", "issue": "(Carry-over) Uses deprecated FastAPI @app.on_event handlers. Prefer lifespan context manager."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/_layout.tsx AuthedGate (segments guard)", "issue": "FIXED BY TESTING AGENT — Guard redirected any user whose top segment was NOT '(parent)'/'(kid)' back to their home group, so `router.push('/shared/badges' | '/shared/calendar' | '/shared/shopping' | '/shared/validate')` immediately bounced to '/'. Added an `inShared = segments[0] === 'shared'` guard so /shared/* routes are reachable. Reference: /app/frontend/app/_layout.tsx:38-49.", "testID": "see-all-badges / badges-card / more-badges / more-calendar / more-shopping / more-validations", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_badges.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_delete_account.py",
+    "/app/backend/tests/test_tasks_regression.py",
+    "/app/test_reports/pytest/pytest_iteration4_badges.xml",
+    "/app/test_reports/pytest/pytest_iteration4_full.xml"
+  ],
+  "action_items": [
+    "Verify (main agent) the /shared route-gate fix in app/_layout.tsx (added `inShared` short-circuit) matches the intended auth model — if there are parent-only screens under /shared they will now be reachable by kids and vice versa (currently only badges/calendar/shopping/validate live there, all of which are family-shared, so this should be correct).",
+    "(Carry-over) Honor `?token=` in GET /api/photos/{path} so RN <Image> on web preview can render proofs.",
+    "(Carry-over) Migrate FastAPI startup/shutdown handlers to lifespan context manager."
+  ],
+  "critical_code_review_comments": [
+    "server.py:460-485 _award correctly $incs points+total_earned+tasks_completed, computes streak (today / yesterday-continue / else reset to 1), then re-reads the user and unlocks any badge whose stat crossed threshold. Order is safe because the read happens AFTER the update.",
+    "server.py:511-519 _unlock_badges uses $addToSet with $each so re-running it is idempotent — good defense against the GET /api/badges retro-unlock call at server.py:525 that re-runs on every read.",
+    "server.py:442-456 complete_task attaches new_badges to the returned completion doc; it's [] on the photo path (status='pending' — no _award call yet). Confirmed by test_photo_task_completion_returns_empty_new_badges_and_pending_status.",
+    "server.py:577 vote_completion → _award on approval — same code path so badges unlock for the completer regardless of who approves. Confirmed by TestVoteApprovalUnlocksBadges.",
+    "Frontend hook src/hooks/use-celebration.ts: uses expo-audio's useAudioPlayer (NOT deprecated expo-av). Web-safe: haptics skipped on Platform.OS === 'web'. Non-blocking (try/catch). Good.",
+    "Frontend BadgeUnlockModal: animated spring + rotating rays; correct testIDs (badge-unlock-modal, badge-modal-close). Only shown when new_badges is non-empty — good.",
+    "app/(kid)/tasks.tsx:65-71: celebrate() fires before the flash is set, and the new_badges modal is triggered from the response. All correct.",
+    "app/shared/badges.tsx: correct rendering — 10-tile grid, unlocked tiles show badge emoji + 'Débloqué' pill, locked tiles show 🔒 + mini progress bar + current/threshold. Uses useFocusEffect for refresh on return."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_badges.py (NEW — 10 tests: GET /api/badges shape + Léa 6/10, fresh-child zero→first_quest unlock, photo pending w/ empty new_badges, vote-approval unlock persistence, demo login + tasks + leaderboard + delete-account regression)",
+    "/app/frontend/app/_layout.tsx (fixed AuthedGate to allow /shared/* routes for both parent and child)"
+  ],
+  "success_rate": {"backend": "100% (46/46)", "frontend": "100% of tested flows after 1 route-gate fix (badges preview + Voir tout navigation + 10-tile grid render + task completion flash)"},
+  "seed_data_creation": "All temp users use TEST_badge_p_*, TEST_badge_c_*, TEST_vote_p_*, TEST_vote_c_*, TEST_reg_del_* prefixes. Vote-flow tests delete their throwaway parent at end (via DELETE /api/auth/account with password). Fresh-family fixture is scoped 'module' and its child/parent are left behind (~2 extra families in DB per run — negligible; each has TEST_ prefix so easy to bulk-clean). Demo accounts (papa/lea/hugo/emma@demo.fr) untouched. NOTE: the non-photo completion test DOES award +8 pts to a fresh TEST_ kid — this touches only the fresh account, not Léa.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: EXPO_PUBLIC_BACKEND_URL=<url> pytest backend/tests/ -v --tb=short. Suite is ~12s with xdist. New file test_badges.py covers the entire badges feature end-to-end. AudioPlayer via expo-audio cannot be verified in headless webkit, only that no runtime crash occurs — confirmed by the flash test in this iteration. If the 1-line _layout.tsx fix is reverted, ALL /shared/* screens (calendar, shopping, validate, badges) will silently redirect back to (kid)/(parent) home — this is the failure signature to look for.",
+  "rca_of_issue": "ROOT CAUSE: /app/frontend/app/_layout.tsx AuthedGate contained `if (user.role === 'child' && !inKid) router.replace('/(kid)')` (and the parent equivalent) — so any authenticated user whose current top segment was 'shared' (or anything else) was immediately bounced to their tab-group home. This made every Pressable that called router.push('/shared/…') look like it did nothing. REPRODUCTION: log in as lea@demo.fr, tap 'Voir tout (6/10)' or Plus > 'Mes badges' → URL flashes to /shared/badges then reverts to /. Also reproducible by pasting /shared/badges in the address bar (with a valid session): app redirects to /. MITIGATION: added `const inShared = segments[0] === 'shared'` and changed the outer condition to `else if (user && !inShared)` so /shared/* routes bypass the role redirect. Verified: after fix, tap → URL becomes /shared/badges and 10 tiles render (6 gold + 4 locked with progress). No regression on login-redirect: unauthenticated /shared/badges still bounces to /(auth)/login (that branch is unchanged)."
+}
