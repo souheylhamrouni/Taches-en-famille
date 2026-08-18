@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend regression for safe-area-aware bottom tab bars in (parent)/_layout.tsx and (kid)/_layout.tsx. On mobile web preview (390x844, insets.bottom=0 → tabBar height=62, paddingBottom=8) both role tab bars render every icon+label fully within the viewport (labels sit at top=823, bottom=831 — 13px above vh=844, no clipping). Parent tabs Tableau/Tâches/Récompenses/Réglages each tap and route to /, /tasks-admin, /rewards-admin, /settings. Kid tabs (Léa) Accueil/Tâches/Classement/Boutique/Plus each tap and route to /, /tasks, /leaderboard, /shop, /more. Bottom-content reachability verified: Parent Tableau → 'Pénalités récentes' section reachable and all penalty rows scroll above tab bar; Kid Accueil → 'Podium' section reachable above tab bar. Shared routes still gated correctly: Parent shortcuts open /shared/validate, /shared/challenges, /shared/calendar, /shared/shopping; Kid 'Voir tout' opens /shared/badges. Full auth loop works: papa@demo.fr login → Réglages → 'Se déconnecter' → /login → demo-kid-lea-button → login → kid home. No red-screen, no console errors during navigation (only a benign expo-notifications web warning and a deprecated pointerEvents style warning).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "(parent)/_layout.tsx:18-19 and (kid)/_layout.tsx:18-19 correctly use useSafeAreaInsets(); height=62+insets.bottom and paddingBottom=Math.max(insets.bottom,8) is the standard fix for edge-to-edge Android. On web preview insets.bottom=0 so behaviour is identical to before the fix (height 62, paddingBottom 8) — matches observation.",
+    "Both layouts depend on <SafeAreaProvider> being mounted above them (usually in the root _layout via react-native-safe-area-context). Confirmed working at runtime — insets hook returns 0/valid values with no crash.",
+    "Minor: 'props.pointerEvents is deprecated. Use style.pointerEvents' warning surfaced repeatedly on login (comes from a dependency, not tab-bar code). Not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (12/12 scenarios: 4 parent tab renders + 4 parent tab taps + 5 kid tab renders + 5 kid tab taps + 4 shared route shortcuts + kid badges + parent scroll-to-bottom + kid scroll-to-bottom + logout + re-login all green)"},
+  "seed_data_creation": "None — used auto-seeded demo accounts papa@demo.fr and lea@demo.fr.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The safe-area tab-bar fix is verified in the web preview but web preview always reports insets.bottom=0. If a future iteration needs to prove the fix on a real Android edge-to-edge device, the only reliable channel is Expo Go / native build — the web preview cannot regress this specific pixel behaviour. In the web preview, expected values are height=62, paddingBottom=8, and tab labels' bottom edge = 831 in a 844 vh viewport (i.e. 13px clearance). If those numbers drift, someone changed the base tab bar constants.",
+  "rca_of_issue": "N/A — reported Android edge-to-edge clipping fix is a purely additive layout change (adds insets.bottom to tabBar height and paddingBottom). On web insets.bottom=0 so no visible change vs previous iteration; on Android system-nav devices the tab bar will now sit above the system navigation bar. No behavioural regression observed in navigation, scroll reachability, shared-route gating, login/logout, or role switching."
+}
