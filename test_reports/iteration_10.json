@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only verification of the challenges.tsx bug fix: parent PIN modal onSuccess now dispatches by pendingAction (create|delete). All 4 scenarios pass at mobile viewport 390x844. (1) DELETE via PIN: fresh login → /shared/challenges shows 'Semaine au top' challenge-card → tap delete-challenge → parent-pin-modal appears → enter 1234 via pin-key-1..4 → modal closes, challenge-card disappears, empty-state 'Aucun défi cette semaine' shows, and challenge-title-input (create form) does NOT open. Bug fix confirmed. (2) CREATE via PIN: after deletion, tap open-add-challenge → PIN token now persisted so modal skipped → create form opens → filled TEST_DefiRetest with metric-tasks target=10 → save-challenge-button → new challenge-card visible with title 'TEST_DefiRetest' 7/10 70%. (3) CANCEL on PIN modal: cleared token, tapped delete-challenge → modal appears → parent-pin-cancel-button → modal closes, create form does NOT open, challenge-card still present (no delete dispatched). (4) REGRESSION: tasks-admin (open-add-task → PIN 1234 → task-title-input visible) and rewards-admin (open-add-reward → PIN 1234 → reward-title-input visible) both work as before.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "challenges.tsx onPinSuccess() reads pendingAction, clears it, then dispatches remove() vs setOpenAdd(true) — clean and correct.",
+    "onCancel of ParentPinModal also clears pendingAction (line 185) so a subsequent action starts from a clean state — good defensive coding.",
+    "Both openCreate() and remove() correctly set pendingAction BEFORE setPinRequired(true), and the same is done in the fallback branches inside submit()/remove() catch blocks when server returns a 'PIN' error and the local token gets stripped."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped by request)", "frontend": "100% — all 4 in-scope scenarios pass including regression" },
+  "seed_data_creation": "Created TEST_DefiRetest challenge during CREATE test; cleaned up at end of run. Original 'Semaine au top' seed challenge was deleted as part of the DELETE-with-PIN scenario (will re-seed on backend restart).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "challenges.tsx PIN-gated DELETE-vs-CREATE dispatch is fixed and verified. If DELETE testing is needed again in a fresh session, the demo family may or may not have 'Semaine au top' depending on whether the backend was restarted after the last delete (auto-seed runs on startup).",
+  "rca_of_issue": "Previous iteration (iteration_9.json) flagged that ParentPinModal.onSuccess unconditionally called setOpenAdd(true), so entering PIN 1234 after tapping delete-challenge would open the create form instead of deleting. Main agent's fix: added pendingAction: 'create'|'delete'|null state; openCreate() sets 'create', remove() sets 'delete'; onPinSuccess() reads pendingAction, resets it, then dispatches remove() for 'delete' else setOpenAdd(true). Verified end-to-end via Playwright: DELETE path correctly deletes and shows empty state without ever opening the create form (STEP 5=False card, STEP 6=False form, STEP 7=True empty state)."
+}

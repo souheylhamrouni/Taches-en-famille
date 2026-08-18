@@ -18,6 +18,7 @@ export default function Challenges() {
   const [refreshing, setRefreshing] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
   const [pinRequired, setPinRequired] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"create" | "delete" | null>(null);
   const [title, setTitle] = useState("");
   const [metric, setMetric] = useState<"tasks" | "points">("tasks");
   const [target, setTarget] = useState("15");
@@ -35,7 +36,7 @@ export default function Challenges() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const openCreate = async () => {
-    if (!(await hasPinToken())) setPinRequired(true);
+    if (!(await hasPinToken())) { setPendingAction("create"); setPinRequired(true); }
     else setOpenAdd(true);
   };
 
@@ -45,16 +46,24 @@ export default function Challenges() {
       await api.post("/challenges", { title, metric, target: parseInt(target) || 15, bonus_points: parseInt(bonus) || 50 });
       setTitle(""); setTarget("15"); setBonus("50"); setMetric("tasks"); setOpenAdd(false); await load();
     } catch (e: any) {
-      if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setOpenAdd(false); setPinRequired(true); }
+      if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setOpenAdd(false); setPendingAction("create"); setPinRequired(true); }
       else setErr(e.message);
     }
   };
 
   const remove = async () => {
     if (!challenge) return;
-    if (!(await hasPinToken())) { setPinRequired(true); return; }
+    if (!(await hasPinToken())) { setPendingAction("delete"); setPinRequired(true); return; }
     try { await api.del(`/challenges/${challenge.id}`); await load(); }
-    catch (e: any) { if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setPinRequired(true); } }
+    catch (e: any) { if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setPendingAction("delete"); setPinRequired(true); } }
+  };
+
+  const onPinSuccess = () => {
+    setPinRequired(false);
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === "delete") remove();
+    else setOpenAdd(true);
   };
 
   const pct = challenge ? Math.round((challenge.percent || 0) * 100) : 0;
@@ -173,7 +182,7 @@ export default function Challenges() {
         </View>
       </Modal>
 
-      <ParentPinModal visible={pinRequired} onCancel={() => setPinRequired(false)} onSuccess={() => { setPinRequired(false); setOpenAdd(true); }} />
+      <ParentPinModal visible={pinRequired} onCancel={() => { setPinRequired(false); setPendingAction(null); }} onSuccess={onPinSuccess} />
     </SafeAreaView>
   );
 }
