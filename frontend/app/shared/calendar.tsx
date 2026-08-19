@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
@@ -23,6 +23,7 @@ function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString("fr-FR",
 export default function Calendar() {
   const router = useRouter();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const isParent = user?.role === "parent";
   const [events, setEvents] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,7 +201,7 @@ export default function Calendar() {
 
       <Modal visible={modalOpen} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
         <View style={s.mBackdrop}>
-          <View style={s.mCard}>
+          <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={s.mTitle}>{editingId ? "Modifier l'événement" : "Nouvel événement"}</Text>
               <TextInput testID="event-title-input" value={title} onChangeText={setTitle}

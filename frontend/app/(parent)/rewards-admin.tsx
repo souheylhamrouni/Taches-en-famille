@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
@@ -11,6 +11,7 @@ import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
 const ICONS = ["🎮", "🎬", "🍦", "🍕", "🛌", "💶", "🎁", "🚴", "📚"];
 
 export default function RewardsAdmin() {
+  const insets = useSafeAreaInsets();
   const [rewards, setRewards] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
@@ -76,7 +77,7 @@ export default function RewardsAdmin() {
 
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
-          <View style={s.mCard}>
+          <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <Text style={s.mTitle}>Nouvelle récompense</Text>
             <TextInput testID="reward-title-input" value={title} onChangeText={setTitle} placeholder="Ex: Sortie ciné" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
             <Text style={s.label}>Coût en points</Text>

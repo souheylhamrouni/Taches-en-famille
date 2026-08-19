@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal, Switch } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
@@ -9,6 +9,7 @@ import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
 
 export default function TasksAdmin() {
+  const insets = useSafeAreaInsets();
   const [tasks, setTasks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,7 +90,7 @@ export default function TasksAdmin() {
 
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
-          <View style={s.mCard}>
+          <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <ScrollView>
               <Text style={s.mTitle}>Nouvelle tâche</Text>
               <TextInput testID="task-title-input" value={title} onChangeText={setTitle} placeholder="Titre" placeholderTextColor={T.onSurfaceMuted} style={s.input} />

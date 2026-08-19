@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
 
 export default function Challenges() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const isParent = user?.role === "parent";
@@ -150,7 +151,7 @@ export default function Challenges() {
 
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
-          <View style={s.mCard}>
+          <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <Text style={s.mTitle}>Nouveau défi</Text>
             <TextInput testID="challenge-title-input" value={title} onChangeText={setTitle}
               placeholder="Ex: Semaine au top" placeholderTextColor={T.onSurfaceMuted} style={s.input} />

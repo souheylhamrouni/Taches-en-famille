@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only regression verification of the safe-area bottom-padding fix applied to the 4 bottom-sheet modal cards. All 4 modals open, show Annuler + primary buttons, and submit successfully at mobile viewport 390x844. CODE REVIEW: all 4 files consistently import useSafeAreaInsets from react-native-safe-area-context, call const insets = useSafeAreaInsets() inside the component, and apply style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]} to the modal card View (calendar.tsx:204, challenges.tsx:154, tasks-admin.tsx:93, rewards-admin.tsx:80). On web insets.bottom=0 so no visual layout change; the effective fix is on Android edge-to-edge devices (cannot be verified via web preview). E2E: (1) CALENDAR — open-add-event → modal shows event-title-input, save-event-button, Annuler; filled TEST_EventSafeArea + start '2026-08-24 10:00'; range-toggle correctly reveals event-end-field then hides; save-event-button → event appears in agenda. (2) TASKS — open-add-task → PIN 1234 via pin-key-1..4 → modal shows task-title-input + save-task-button; TEST_TaskSafeArea created. (3) REWARDS — open-add-reward → modal shows reward-title-input, reward-cost-input, save-reward-button (PIN already unlocked from session); TEST_RewardSafeArea (50 pts) created and visible in list. (4) CHALLENGES — deleted existing 'TEST_DefiRetest' active challenge (PIN 1234); open-add-challenge then reappeared; PIN modal → challenge-title-input + save-challenge-button + Annuler all visible; TEST_DefiFinal (metric tâches 0/15) created. (5) REGRESSION — parent login demo-parent-button + login-submit-button works; kid lea@demo.fr can log in and view /shared/calendar (event list including TEST_EventSafeArea rendered).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Safe-area fix is uniform across all 4 files: import path, hook call site, and inline-style shape are identical — good.",
+    "insets.bottom is added to the existing S.lg base padding, so on devices without a gesture bar there's no extra whitespace beyond what was there before.",
+    "Fix does not affect maxHeight: '88%' constraint on calendar/tasks modal cards — modals remain scrollable when content overflows.",
+    "Web preview cannot exercise the actual Android system-nav overlap; suggest a native Android build (EAS build) test to close the loop on the bug's real symptom."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped by request)", "frontend": "100% — all 4 in-scope modal flows pass + parent/kid regression" },
+  "seed_data_creation": "Created TEST_EventSafeArea (calendar), TEST_TaskSafeArea (task), TEST_RewardSafeArea (reward 50pts), TEST_DefiFinal (challenge tâches target=15). The previously-seeded 'Semaine au top' / 'TEST_DefiRetest' challenge was deleted as part of the CHALLENGES flow (auto-reseeds on backend restart if absent).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 bottom-sheet modals expose paddingBottom = insets.bottom + S.lg. The web preview shows no layout regression. Any next agent asked to re-verify on Android must use a native build (Expo Go/EAS) — the safe-area value is 0 on web. Demo family seed data (Famille Dupont) intact; only the challenge was replaced with TEST_DefiFinal.",
+  "rca_of_issue": "Original bug: on Android edge-to-edge devices, the four bottom-sheet modals (add-event, add-challenge, add-task, add-reward) rendered their Annuler / Enregistrer (Créer) buttons inside the area occupied by the system navigation bar, making them un-tappable. Root cause: modal card only used static padding S.lg without accounting for SafeArea bottom inset. Fix (main agent): read insets = useSafeAreaInsets() and apply paddingBottom: insets.bottom + S.lg to each mCard View. Verified via web that no regression is introduced (insets.bottom=0 on web keeps layout identical) and that every modal continues to open/submit correctly. Full Android confirmation requires physical device or Android emulator via EAS build."
+}
