@@ -24,6 +24,12 @@ export default function Settings() {
           <Text style={s.role}>👑 Parent</Text>
         </Card>
 
+        <Pressable testID="link-members" onPress={() => router.push("/shared/members")}
+          style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
+          <View style={s.iconWrap}><Ionicons name="people" size={22} color={T.orange} /></View>
+          <Text style={s.rowLabel}>Membres de la famille</Text>
+          <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
+        </Pressable>
         <Pressable testID="link-challenge" onPress={() => router.push("/shared/challenges")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="flag" size={22} color={T.orange} /></View>

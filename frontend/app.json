@@ -51,7 +51,8 @@
           "backgroundColor": "#58CC02"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

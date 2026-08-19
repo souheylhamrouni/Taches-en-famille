@@ -202,6 +202,14 @@ class EventCreate(BaseModel):
     color: Optional[str] = "#58CC02"
     recurrence: Literal["none", "weekly"] = "none"
 
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    color: Optional[str] = None
+    recurrence: Optional[Literal["none", "weekly"]] = None
+
 class ShoppingCreate(BaseModel):
     item_name: str
 
@@ -831,6 +839,19 @@ async def create_event(body: EventCreate, user=Depends(current_user)):
 @api.delete("/events/{eid}")
 async def del_event(eid: str, user=Depends(current_user)):
     await db.events.delete_one({"id": eid, "family_id": user["family_id"]})
+    return {"ok": True}
+
+
+@api.patch("/events/{eid}")
+async def update_event(eid: str, body: EventUpdate, user=Depends(current_user)):
+    if user["role"] != "parent":
+        raise HTTPException(403, "Seul un parent peut modifier un événement")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        return {"ok": True}
+    res = await db.events.update_one({"id": eid, "family_id": user["family_id"]}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Événement introuvable")
     return {"ok": True}
 
 
