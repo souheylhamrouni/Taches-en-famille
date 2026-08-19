@@ -89,6 +89,19 @@ export default function KidHome() {
           </Pressable>
         )}
 
+        <View style={s.kidShortcuts}>
+          <Pressable testID="kid-shortcut-calendar" onPress={() => router.push("/shared/calendar")}
+            style={({ pressed }) => [s.kidShortcut, pressed && { opacity: 0.9 }]}>
+            <Ionicons name="calendar" size={22} color={T.brand} />
+            <Text style={s.kidShortcutText}>Calendrier</Text>
+          </Pressable>
+          <Pressable testID="kid-shortcut-shopping" onPress={() => router.push("/shared/shopping")}
+            style={({ pressed }) => [s.kidShortcut, pressed && { opacity: 0.9 }]}>
+            <Ionicons name="cart" size={22} color={T.brand} />
+            <Text style={s.kidShortcutText}>Courses</Text>
+          </Pressable>
+        </View>
+
         <View>
           <Text style={s.sectionTitle}>🎯 À faire maintenant</Text>
           {myTasks.filter(t => t.today_status === "todo").slice(0, 4).map((t: any) => (
@@ -174,6 +187,9 @@ const s = StyleSheet.create({
   challengeTrack: { height: 10, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: R.pill, overflow: "hidden", marginVertical: 6 },
   challengeFill: { height: "100%", borderRadius: R.pill },
   challengeSub: { color: T.white, fontWeight: "700", fontSize: 12, opacity: 0.95 },
+  kidShortcuts: { flexDirection: "row", gap: S.sm },
+  kidShortcut: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, backgroundColor: T.white, paddingVertical: 14, borderRadius: R.lg, borderWidth: 2, borderColor: T.border },
+  kidShortcutText: { fontWeight: "800", color: T.onSurface, fontSize: 14 },
   badgeChip: { flex: 1, alignItems: "center", gap: 4 },
   badgeChipText: { fontSize: 11, fontWeight: "800", color: T.onSurface, textAlign: "center" },
   taskRow: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, marginBottom: S.sm },

@@ -80,9 +80,14 @@ export default function ParentDashboard() {
           <Text style={s.sectionTitle}>⚡ Raccourcis</Text>
           <View style={s.shortcuts}>
             <Shortcut icon="checkmark-done-circle" label="Valider" onPress={() => router.push("/shared/validate")} testID="short-validate" badge={pending.length} />
+            <Shortcut icon="flame" label="Mes tâches" onPress={() => router.push("/shared/mytasks")} testID="short-mytasks" />
+            <Shortcut icon="gift" label="Boutique" onPress={() => router.push("/shared/myrewards")} testID="short-myrewards" />
             <Shortcut icon="flag" label="Défi" onPress={() => router.push("/shared/challenges")} testID="short-challenge" />
+          </View>
+          <View style={[s.shortcuts, { marginTop: S.sm }]}>
             <Shortcut icon="calendar" label="Calendrier" onPress={() => router.push("/shared/calendar")} testID="short-calendar" />
             <Shortcut icon="cart" label="Courses" onPress={() => router.push("/shared/shopping")} testID="short-shopping" />
+            <Shortcut icon="people" label="Membres" onPress={() => router.push("/shared/members")} testID="short-members" />
           </View>
         </View>
 

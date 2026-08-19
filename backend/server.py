@@ -340,7 +340,7 @@ async def get_family(user=Depends(current_user)):
 @api.get("/family/leaderboard")
 async def leaderboard(user=Depends(current_user)):
     members = await db.users.find(
-        {"family_id": user["family_id"], "role": "child"},
+        {"family_id": user["family_id"]},
         {"_id": 0, "password_hash": 0, "pin_hash": 0}
     ).to_list(100)
     members.sort(key=lambda u: u.get("points", 0), reverse=True)

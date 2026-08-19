@@ -49,7 +49,23 @@ export default function Calendar() {
 
   const byDay = useMemo(() => {
     const map: Record<string, any[]> = {};
-    for (const e of events) { const k = keyFromISO(e.start_time); (map[k] ||= []).push(e); }
+    for (const e of events) {
+      const start = new Date(e.start_time);
+      // Multi-day (range) non-recurring events get a dot on every day in the range.
+      if (e.end_time && e.recurrence !== "weekly") {
+        const end = new Date(e.end_time);
+        const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+        let guard = 0;
+        while (cur <= last && guard < 366) {
+          (map[dayKey(cur)] ||= []).push(e);
+          cur.setDate(cur.getDate() + 1);
+          guard++;
+        }
+      } else {
+        (map[keyFromISO(e.start_time)] ||= []).push(e);
+      }
+    }
     return map;
   }, [events]);
 

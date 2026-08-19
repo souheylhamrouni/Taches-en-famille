@@ -27,7 +27,7 @@ export default function TasksAdmin() {
     try {
       const [t, f] = await Promise.all([api.get("/tasks"), api.get("/family")]);
       setTasks(t.tasks || []);
-      setMembers((f.members || []).filter((m: any) => m.role === "child"));
+      setMembers(f.members || []);
     } catch {}
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
