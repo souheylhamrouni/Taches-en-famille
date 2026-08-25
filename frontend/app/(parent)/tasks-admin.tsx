@@ -21,6 +21,7 @@ export default function TasksAdmin() {
   const [photoReq, setPhotoReq] = useState(true);
   const [freq, setFreq] = useState<"daily" | "weekly" | "once">("daily");
   const [selected, setSelected] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -33,20 +34,30 @@ export default function TasksAdmin() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
+  const resetForm = () => { setTitle(""); setPoints("20"); setPenalty("50"); setPhotoReq(true); setFreq("daily"); setSelected([]); setEditingId(null); };
+
   const openCreate = async () => {
+    resetForm();
+    if (!(await hasPinToken())) setPinRequired(true);
+    else setOpenAdd(true);
+  };
+
+  const openEdit = async (t: any) => {
+    setEditingId(t.id); setTitle(t.title); setPoints(String(t.points_worth));
+    setPenalty(String(t.penalty_points)); setPhotoReq(t.photo_required); setFreq(t.frequency);
+    setSelected(t.assigned_to || []); setErr(null);
     if (!(await hasPinToken())) setPinRequired(true);
     else setOpenAdd(true);
   };
 
   const submit = async () => {
     setErr(null);
+    const payload = { title, points_worth: parseInt(points) || 20, penalty_points: parseInt(penalty) || 0,
+      frequency: freq, photo_required: photoReq, assigned_to: selected };
     try {
-      await api.post("/tasks", {
-        title, points_worth: parseInt(points) || 20, penalty_points: parseInt(penalty) || 0,
-        frequency: freq, photo_required: photoReq, assigned_to: selected,
-      });
-      setTitle(""); setPoints("20"); setPenalty("50"); setPhotoReq(true);
-      setFreq("daily"); setSelected([]); setOpenAdd(false); await load();
+      if (editingId) await api.patch(`/tasks/${editingId}`, payload);
+      else await api.post("/tasks", payload);
+      resetForm(); setOpenAdd(false); await load();
     } catch (e: any) {
       if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setOpenAdd(false); setPinRequired(true); }
       else setErr(e.message);

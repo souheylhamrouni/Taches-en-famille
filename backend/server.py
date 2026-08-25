@@ -1069,6 +1069,157 @@ async def root():
     return {"app": "TâcheHéros", "ok": True}
 
 
+# -------- Email (Emergent managed Resend) --------
+import secrets as _secrets
+from html import escape as _esc
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "TâcheHéros")
+
+
+async def _send_email(to: str, subject: str, html: str):
+    if "<form" in html.lower() or "<input" in html.lower():
+        raise ValueError("Email must not contain forms")
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
+                             headers={"X-Email-Key": EMAIL_KEY}, json=payload)
+        r.raise_for_status()
+        return r.json().get("id")
+    except Exception as e:
+        log.error(f"email send error: {e}")
+        raise HTTPException(502, "Échec de l'envoi de l'email")
+
+
+class ForgotBody(BaseModel):
+    email: EmailStr
+
+class ResetBody(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=6, max_length=128)
+
+class ProfileUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+
+class FamilyUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(body: ForgotBody):
+    email = body.email.lower()
+    user = await db.users.find_one({"email": email})
+    if user:
+        code = f"{_secrets.randbelow(1000000):06d}"
+        await db.users.update_one({"id": user["id"]}, {"$set": {
+            "reset_code_hash": passwords.hash(code),
+            "reset_expires": (now() + timedelta(minutes=15)).isoformat(),
+        }})
+        html = (f'<table role="presentation" width="100%"><tr><td style="padding:24px;'
+                f'font-family:Arial,sans-serif;color:#1A1A1A">'
+                f'<h2 style="color:#58CC02">TâcheHéros</h2>'
+                f'<p>Bonjour {_esc(user["name"])},</p>'
+                f'<p>Votre code de réinitialisation du mot de passe est :</p>'
+                f'<p style="font-size:30px;font-weight:bold;letter-spacing:4px">{code}</p>'
+                f'<p>Il expire dans 15 minutes. Saisissez-le dans l\'application pour choisir un nouveau mot de passe.</p>'
+                f'<p style="font-size:12px;color:#888">Envoyé par TâcheHéros. Nous ne vous demanderons jamais votre mot de passe par email.</p>'
+                f'</td></tr></table>')
+        try:
+            await _send_email(email, "Code de réinitialisation TâcheHéros", html)
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+@api.post("/auth/reset-password")
+async def reset_password(body: ResetBody):
+    email = body.email.lower()
+    user = await db.users.find_one({"email": email})
+    if not user or not user.get("reset_code_hash"):
+        raise HTTPException(400, "Code invalide ou expiré")
+    exp = user.get("reset_expires")
+    if not exp or datetime.fromisoformat(exp) < now():
+        raise HTTPException(400, "Code expiré")
+    if not passwords.verify(body.code, user["reset_code_hash"]):
+        raise HTTPException(400, "Code incorrect")
+    await db.users.update_one({"id": user["id"]}, {
+        "$set": {"password_hash": passwords.hash(body.new_password)},
+        "$unset": {"reset_code_hash": "", "reset_expires": ""},
+    })
+    return {"ok": True}
+
+
+@api.patch("/auth/profile")
+async def update_profile(body: ProfileUpdate, user=Depends(current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$set": {"name": body.name.strip()}})
+    return {"ok": True}
+
+
+@api.patch("/auth/password")
+async def change_password(body: PasswordChange, user=Depends(current_user)):
+    doc = await db.users.find_one({"id": user["id"]})
+    if not doc or not passwords.verify(body.current_password, doc["password_hash"]):
+        raise HTTPException(401, "Mot de passe actuel incorrect")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": passwords.hash(body.new_password)}})
+    return {"ok": True}
+
+
+@api.patch("/family")
+async def update_family(body: FamilyUpdate, user=Depends(current_user)):
+    if user["role"] != "parent":
+        raise HTTPException(403, "Seul un parent peut renommer la famille")
+    await db.families.update_one({"id": user["family_id"]}, {"$set": {"name": body.name.strip()}})
+    return {"ok": True}
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    points_worth: Optional[int] = None
+    penalty_points: Optional[int] = None
+    frequency: Optional[Literal["daily", "weekly", "once"]] = None
+    assigned_to: Optional[List[str]] = None
+    photo_required: Optional[bool] = None
+
+
+@api.patch("/tasks/{task_id}")
+async def update_task(task_id: str, body: TaskUpdate, user=Depends(parent_pin)):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        return {"ok": True}
+    res = await db.tasks.update_one({"id": task_id, "family_id": user["family_id"]}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Tâche introuvable")
+    return {"ok": True}
+
+
+class ChallengeUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    target: Optional[int] = None
+    bonus_points: Optional[int] = None
+    metric: Optional[Literal["tasks", "points"]] = None
+
+
+@api.patch("/challenges/{cid}")
+async def update_challenge(cid: str, body: ChallengeUpdate, user=Depends(parent_pin)):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        return {"ok": True}
+    res = await db.challenges.update_one({"id": cid, "family_id": user["family_id"]}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Défi introuvable")
+    await _check_challenge_completion(user["family_id"])
+    return {"ok": True}
+
+
+
 app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])

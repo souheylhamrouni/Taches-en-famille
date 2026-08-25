@@ -68,6 +68,11 @@ export default function Login() {
                 <Text style={styles.linkText}>Créer un compte</Text>
               </Pressable>
             </Link>
+            <Link href="/(auth)/forgot" asChild>
+              <Pressable testID="go-forgot-button" style={styles.linkBtn}>
+                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+              </Pressable>
+            </Link>
           </View>
 
           <View style={styles.demoCard}>
@@ -119,6 +124,7 @@ const styles = StyleSheet.create({
   btnText: { color: T.white, fontSize: 17, fontWeight: "900", letterSpacing: 0.3 },
   linkBtn: { alignItems: "center", padding: S.md },
   linkText: { color: T.brand, fontWeight: "800", fontSize: 15 },
+  forgotText: { color: T.onSurfaceMuted, fontWeight: "700", fontSize: 14 },
   demoCard: {
     backgroundColor: T.surfaceSecondary, borderRadius: R.lg, padding: S.lg,
     borderWidth: 2, borderColor: T.border, gap: S.md,

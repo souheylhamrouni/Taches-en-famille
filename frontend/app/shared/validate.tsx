@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Image, Platform } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -60,10 +61,10 @@ export default function ValidateFeed() {
                   </View>
                   {c.photo_path && (
                     <Image
-                      source={Platform.OS === "web"
-                        ? { uri: `${BACKEND_URL}/api/photos/${c.photo_path}?token=${encodeURIComponent(token)}` }
-                        : { uri: `${BACKEND_URL}/api/photos/${c.photo_path}`, headers: { Authorization: `Bearer ${token}` } }}
+                      testID={`photo-${c.id}`}
+                      source={{ uri: `${BACKEND_URL}/api/photos/${c.photo_path}?token=${encodeURIComponent(token)}` }}
                       style={s.photo}
+                      contentFit="cover"
                     />
                   )}
                   <View style={s.votesInfo}>
