@@ -5,9 +5,10 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
 import { T, S, R } from "@/src/lib/theme";
+import { useAuth } from "@/src/lib/auth";
 import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
-
+ 
 export default function TasksAdmin() {
   const insets = useSafeAreaInsets();
   const [tasks, setTasks] = useState<any[]>([]);
@@ -23,7 +24,9 @@ export default function TasksAdmin() {
   const [selected, setSelected] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-
+  const { user } = useAuth();
+  const isParent = user?.role === "parent";
+ 
   const load = useCallback(async () => {
     try {
       const [t, f] = await Promise.all([api.get("/tasks"), api.get("/family")]);
@@ -33,15 +36,15 @@ export default function TasksAdmin() {
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
+ 
   const resetForm = () => { setTitle(""); setPoints("20"); setPenalty("50"); setPhotoReq(true); setFreq("daily"); setSelected([]); setEditingId(null); };
-
+ 
   const openCreate = async () => {
     resetForm();
     if (!(await hasPinToken())) setPinRequired(true);
     else setOpenAdd(true);
   };
-
+ 
   const openEdit = async (t: any) => {
     setEditingId(t.id); setTitle(t.title); setPoints(String(t.points_worth));
     setPenalty(String(t.penalty_points)); setPhotoReq(t.photo_required); setFreq(t.frequency);
@@ -49,7 +52,7 @@ export default function TasksAdmin() {
     if (!(await hasPinToken())) setPinRequired(true);
     else setOpenAdd(true);
   };
-
+ 
   const submit = async () => {
     setErr(null);
     const payload = { title, points_worth: parseInt(points) || 20, penalty_points: parseInt(penalty) || 0,
@@ -57,22 +60,22 @@ export default function TasksAdmin() {
     try {
       if (editingId) await api.patch(`/tasks/${editingId}`, payload);
       else await api.post("/tasks", payload);
-      resetForm(); setOpenAdd(false); await load();
+      setEditingId(null);resetForm(); setOpenAdd(false); await load();
     } catch (e: any) {
       if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setOpenAdd(false); setPinRequired(true); }
       else setErr(e.message);
     }
   };
-
+ 
   const remove = async (id: string) => {
     if (!(await hasPinToken())) { setPinRequired(true); return; }
     try { await api.del(`/tasks/${id}`); await load(); }
     catch (e: any) { if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setPinRequired(true); } }
   };
-
+ 
   const toggleMember = (id: string) =>
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-
+ 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenHeader title="Tâches" subtitle="Configurez les corvées" right={
@@ -91,6 +94,11 @@ export default function TasksAdmin() {
                 <Text style={s.title}>{t.title}</Text>
                 <Text style={s.sub}>+{t.points_worth} pts · -{t.penalty_points} pén. · {t.frequency}</Text>
               </View>
+              {isParent && (
+                <Pressable testID={`edit-task-${t.id}`} onPress={() => openEdit(t)} style={{ padding: 4 }}>
+                  <Ionicons name="create-outline" size={20} color={T.brand} />
+                </Pressable>
+              )}
               <Pressable testID={`del-task-${t.id}`} onPress={() => remove(t.id)}>
                 <Ionicons name="trash-outline" size={22} color={T.red} />
               </Pressable>
@@ -98,12 +106,14 @@ export default function TasksAdmin() {
           </Card>
         ))}
       </ScrollView>
-
+ 
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
           <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <ScrollView>
-              <Text style={s.mTitle}>Nouvelle tâche</Text>
+              <Text style={s.mTitle}>
+                {editingId ? "Modifier la tâche" : "Nouvelle tâche"}
+              </Text>
               <TextInput testID="task-title-input" value={title} onChangeText={setTitle} placeholder="Titre" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
               <View style={{ flexDirection: "row", gap: S.sm }}>
                 <View style={{ flex: 1 }}>
@@ -138,13 +148,13 @@ export default function TasksAdmin() {
               {err ? <Text style={{ color: T.red, fontWeight: "700", marginTop: S.sm }}>{err}</Text> : null}
               <View style={{ flexDirection: "row", gap: S.sm, marginTop: S.lg }}>
                 <Pressable style={s.cancelBtn} onPress={() => setOpenAdd(false)}><Text style={{ fontWeight: "800", color: T.onSurfaceMuted }}>Annuler</Text></Pressable>
-                <Pressable testID="save-task-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>Créer</Text></Pressable>
+                <Pressable testID="save-task-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>{editingId ? "Enregistrer" : "Créer"}</Text></Pressable>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
-
+ 
       <ParentPinModal visible={pinRequired} onCancel={() => setPinRequired(false)} onSuccess={() => { setPinRequired(false); setOpenAdd(true); }} />
     </SafeAreaView>
   );

@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { T } from "@/src/lib/theme";
-
+ 
 export default function ParentLayout() {
   const insets = useSafeAreaInsets();
   return (
@@ -23,6 +23,7 @@ export default function ParentLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Tableau", tabBarIcon: ({ color }) => <Ionicons name="grid" size={22} color={color} /> }} />
       <Tabs.Screen name="tasks-admin" options={{ title: "Tâches", tabBarIcon: ({ color }) => <Ionicons name="list" size={22} color={color} /> }} />
+      <Tabs.Screen name="leaderboard" options={{ title: "Classement", tabBarIcon: ({ color }) => <Ionicons name="trophy" size={22} color={color} /> }} />
       <Tabs.Screen name="rewards-admin" options={{ title: "Récompenses", tabBarIcon: ({ color }) => <Ionicons name="gift" size={22} color={color} /> }} />
       <Tabs.Screen name="settings" options={{ title: "Réglages", tabBarIcon: ({ color }) => <Ionicons name="settings" size={22} color={color} /> }} />
     </Tabs>

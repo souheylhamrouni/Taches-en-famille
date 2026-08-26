@@ -6,41 +6,43 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
-import { Card, PointsPill, StreakPill, EmptyState } from "@/src/components/UI";
-
+import { Card, PointsPill, StreakPill, EmptyState, ScreenHeader } from "@/src/components/UI";
+ 
 export default function KidHome() {
   const { user, refresh } = useAuth();
   const router = useRouter();
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [top, setTop] = useState<any[]>([]);
+  const [family, setFamily] = useState<any>(null);
   const [badges, setBadges] = useState<{ unlocked_count: number; total: number; list: any[] }>({ unlocked_count: 0, total: 0, list: [] });
   const [challenge, setChallenge] = useState<any>(null);
-
+ 
   const load = useCallback(async () => {
     try {
-      const [t, lb, bg, ch] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard"), api.get("/badges"), api.get("/challenges")]);
+      const [t, lb, bg, ch,fam] = await Promise.all([api.get("/tasks"), api.get("/family/leaderboard"), api.get("/badges"), api.get("/challenges"), api.get("/family/leaderboard"),]);
       setTasks(t.tasks || []);
       setTop((lb.members || []).slice(0, 3));
       setBadges({ unlocked_count: bg.unlocked_count || 0, total: bg.total || 0, list: (bg.badges || []).filter((b: any) => b.unlocked).slice(-4) });
       setChallenge(ch.challenge || null);
+      setFamily(fam.family);
       await refresh();
     } catch {}
   }, [refresh]);
-
+ 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-
+ 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
+ 
   const myTasks = tasks.filter((t: any) =>
     (t.assigned_to?.length === 0) || t.assigned_to.includes(user?.id)
   );
   const todoCount = myTasks.filter(t => t.today_status === "todo").length;
   const doneCount = myTasks.filter(t => t.today_status !== "todo").length;
   const progress = myTasks.length ? doneCount / myTasks.length : 0;
-
+ 
   if (!user) return null;
-
+ 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView
@@ -57,7 +59,7 @@ export default function KidHome() {
             <StreakPill value={user.streak} />
           </View>
         </View>
-
+ 
         <Card testID="progress-card">
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: S.sm }}>
             <Text style={s.cardTitle}>Ma quête du jour</Text>
@@ -71,7 +73,7 @@ export default function KidHome() {
               todoCount > 0 ? `⏰ ${todoCount} tâche(s) avant 20h` : "Aucune tâche pour aujourd'hui"}
           </Text>
         </Card>
-
+ 
         {challenge && (
           <Pressable testID="challenge-banner" onPress={() => router.push("/shared/challenges")}
             style={({ pressed }) => [s.challengeBanner, challenge.status === "completed" && s.challengeDone, pressed && { opacity: 0.9 }]}>
@@ -88,7 +90,7 @@ export default function KidHome() {
             <Ionicons name="chevron-forward" size={22} color={T.white} />
           </Pressable>
         )}
-
+ 
         <View style={s.kidShortcuts}>
           <Pressable testID="kid-shortcut-calendar" onPress={() => router.push("/shared/calendar")}
             style={({ pressed }) => [s.kidShortcut, pressed && { opacity: 0.9 }]}>
@@ -101,7 +103,7 @@ export default function KidHome() {
             <Text style={s.kidShortcutText}>Courses</Text>
           </Pressable>
         </View>
-
+ 
         <View>
           <Text style={s.sectionTitle}>🎯 À faire maintenant</Text>
           {myTasks.filter(t => t.today_status === "todo").slice(0, 4).map((t: any) => (
@@ -123,7 +125,7 @@ export default function KidHome() {
             <EmptyState emoji="😴" title="Aucune quête aujourd'hui !" subtitle="Reviens demain pour de nouvelles missions" />
           )}
         </View>
-
+ 
         <View>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm }}>
             <Text style={s.sectionTitle}>🏅 Mes badges</Text>
@@ -148,7 +150,7 @@ export default function KidHome() {
             </Card>
           </Pressable>
         </View>
-
+ 
         <View>
           <Text style={s.sectionTitle}>🏆 Podium hebdomadaire</Text>
           <Card>
@@ -168,8 +170,8 @@ export default function KidHome() {
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
+ 
+export const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.surface },
   headerRow: { flexDirection: "row", alignItems: "center", gap: S.md },
   hello: { color: T.onSurfaceMuted, fontSize: 15, fontWeight: "700" },

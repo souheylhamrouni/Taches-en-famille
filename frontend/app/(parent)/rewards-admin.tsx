@@ -5,11 +5,12 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
 import { T, S, R } from "@/src/lib/theme";
+import { useAuth } from "@/src/lib/auth";
 import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
-
+ 
 const ICONS = ["🎮", "🎬", "🍦", "🍕", "🛌", "💶", "🎁", "🚴", "📚"];
-
+ 
 export default function RewardsAdmin() {
   const insets = useSafeAreaInsets();
   const [rewards, setRewards] = useState<any[]>([]);
@@ -19,19 +20,33 @@ export default function RewardsAdmin() {
   const [title, setTitle] = useState("");
   const [cost, setCost] = useState("100");
   const [icon, setIcon] = useState("🎁");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-
+  const { user } = useAuth();
+  const isParent = user?.role === "parent";
+ 
   const load = useCallback(async () => {
     try { const r = await api.get("/rewards"); setRewards(r.rewards || []); } catch {}
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
+ 
+  const resetForm = () => { setTitle(""); setCost("20"); setIcon("🎁"); setEditingId(null); };
+ 
   const openCreate = async () => {
+    resetForm();
     if (!(await hasPinToken())) setPinRequired(true);
     else setOpenAdd(true);
   };
-
+ 
+  const openEdit = async (t: any) => {
+    setEditingId(t.id); setTitle(t.title); setCost(String(t.point_cost));
+    setIcon(t.icon);
+    setErr(null);
+    if (!(await hasPinToken())) setPinRequired(true);
+    else setOpenAdd(true);
+  };
+ 
   const submit = async () => {
     setErr(null);
     try {
@@ -42,13 +57,14 @@ export default function RewardsAdmin() {
       else setErr(e.message);
     }
   };
-
+ 
+ 
   const remove = async (id: string) => {
     if (!(await hasPinToken())) { setPinRequired(true); return; }
     try { await api.del(`/rewards/${id}`); await load(); }
     catch (e: any) { if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setPinRequired(true); } }
   };
-
+ 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenHeader title="Récompenses" subtitle="Catalogue de la boutique" right={
@@ -67,6 +83,11 @@ export default function RewardsAdmin() {
                 <Text style={s.title}>{r.title}</Text>
                 <Text style={s.sub}>{r.point_cost} points</Text>
               </View>
+              {isParent && (
+                <Pressable testID={`edit-task-${r.id}`} onPress={() => openEdit(r)} style={{ padding: 4 }}>
+                  <Ionicons name="create-outline" size={20} color={T.brand} />
+                </Pressable>
+              )}
               <Pressable testID={`del-reward-${r.id}`} onPress={() => remove(r.id)}>
                 <Ionicons name="trash-outline" size={22} color={T.red} />
               </Pressable>
@@ -74,11 +95,13 @@ export default function RewardsAdmin() {
           </Card>
         ))}
       </ScrollView>
-
+ 
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
           <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
-            <Text style={s.mTitle}>Nouvelle récompense</Text>
+            <Text style={s.mTitle}>
+                {editingId ? "Modifier la récompense" : "Nouvelle récompense"}
+            </Text>
             <TextInput testID="reward-title-input" value={title} onChangeText={setTitle} placeholder="Ex: Sortie ciné" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
             <Text style={s.label}>Coût en points</Text>
             <TextInput testID="reward-cost-input" value={cost} onChangeText={setCost} keyboardType="number-pad" style={s.input} />
@@ -94,12 +117,12 @@ export default function RewardsAdmin() {
             {err ? <Text style={{ color: T.red, fontWeight: "700", marginTop: S.sm }}>{err}</Text> : null}
             <View style={{ flexDirection: "row", gap: S.sm, marginTop: S.lg }}>
               <Pressable style={s.cancelBtn} onPress={() => setOpenAdd(false)}><Text style={{ fontWeight: "800", color: T.onSurfaceMuted }}>Annuler</Text></Pressable>
-              <Pressable testID="save-reward-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>Créer</Text></Pressable>
+              <Pressable testID="save-reward-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>{editingId ? "Enregistrer" : "Créer"}</Text></Pressable>
             </View>
           </View>
         </View>
       </Modal>
-
+ 
       <ParentPinModal visible={pinRequired} onCancel={() => setPinRequired(false)} onSuccess={() => { setPinRequired(false); setOpenAdd(true); }} />
     </SafeAreaView>
   );

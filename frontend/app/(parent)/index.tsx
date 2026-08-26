@@ -6,10 +6,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
-import { ScreenHeader, Card } from "@/src/components/UI";
-
+import { Card, PointsPill, StreakPill, EmptyState, ScreenHeader } from "@/src/components/UI";
+ 
+ 
 export default function ParentDashboard() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const router = useRouter();
   const [pending, setPending] = useState<any[]>([]);
   const [top, setTop] = useState<any[]>([]);
@@ -17,26 +18,44 @@ export default function ParentDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [claims, setClaims] = useState<any[]>([]);
   const [family, setFamily] = useState<any>(null);
-
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [badges, setBadges] = useState<{ unlocked_count: number; total: number; list: any[] }>({ unlocked_count: 0, total: 0, list: [] });
+  const [challenge, setChallenge] = useState<any>(null);
+ 
   const load = useCallback(async () => {
     try {
-      const [p, lb, pen, cl, fam] = await Promise.all([
+      const [p, lb, pen, cl, fam, t, bg, ch] = await Promise.all([
         api.get("/completions/pending"),
         api.get("/family/leaderboard"),
         api.get("/penalties"),
         api.get("/claims"),
         api.get("/family"),
+        api.get("/tasks"),
+        api.get("/badges"),
+        api.get("/challenges")
       ]);
       setPending(p.completions || []);
       setTop((lb.members || []).slice(0, 3));
       setPenalties((pen.penalties || []).slice(0, 5));
       setClaims((cl.claims || []).slice(0, 5));
       setFamily(fam.family);
+      setTasks(t.tasks || []);
+      setBadges({ unlocked_count: bg.unlocked_count || 0, total: bg.total || 0, list: (bg.badges || []).filter((b: any) => b.unlocked).slice(-4) });
+      setChallenge(ch.challenge || null);
     } catch {}
   }, []);
+ 
+ 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
+ 
+  const myTasks = tasks.filter((t: any) =>
+    (t.assigned_to?.length === 0) || t.assigned_to.includes(user?.id)
+  );
+  const todoCount = myTasks.filter(t => t.today_status === "todo").length;
+  const doneCount = myTasks.filter(t => t.today_status !== "todo").length;
+  const progress = myTasks.length ? doneCount / myTasks.length : 0;
+ 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenHeader title={`Bonjour ${user?.name}`} subtitle={family?.name || "Tableau de bord"} />
@@ -49,17 +68,83 @@ export default function ParentDashboard() {
           <StatBox label="Récompenses" value={claims.length} color={T.brand} testID="stat-claims" />
           <StatBox label="Pénalités" value={penalties.length} color={T.red} testID="stat-penalties" />
         </View>
-
-        {family && (
-          <Card testID="family-code-card">
-            <Text style={s.cardTitle}>🏠 Code famille</Text>
-            <Text style={{ color: T.onSurfaceMuted, marginTop: 4 }}>{"Partagez ce code avec les enfants lors de l'inscription :"}</Text>
-            <View style={s.codeBox}>
-              <Text style={s.codeText} selectable numberOfLines={1}>{family.id}</Text>
+ 
+        <Card testID="progress-card">
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: S.sm }}>
+              <Text style={s.cardTitle}>Ma quête du jour</Text>
+              <Text style={s.progressText}>{doneCount}/{myTasks.length}</Text>
             </View>
-          </Card>
+            <View style={s.progressTrack}>
+            <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
+            </View>
+              <Text style={s.hint}>
+                {todoCount === 0 && myTasks.length > 0 ? "🎉 Toutes les tâches faites !" :
+                  todoCount > 0 ? `⏰ ${todoCount} tâche(s) avant 20h` : "Aucune tâche pour aujourd'hui"}
+              </Text>
+        </Card>
+        {challenge && (
+          <Pressable testID="challenge-banner" onPress={() => router.push("/shared/challenges")}
+            style={({ pressed }) => [s.challengeBanner, challenge.status === "completed" && s.challengeDone, pressed && { opacity: 0.9 }]}>
+            <Text style={{ fontSize: 34 }}>{challenge.status === "completed" ? "🏆" : "🎯"}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.challengeTitle}>Défi : {challenge.title}</Text>
+              <View style={s.challengeTrack}>
+                <View style={[s.challengeFill, { width: `${Math.min(100, Math.round((challenge.percent || 0) * 100))}%`, backgroundColor: challenge.status === "completed" ? T.gold : T.white }]} />
+              </View>
+              <Text style={s.challengeSub}>
+                {challenge.progress}/{challenge.target} {challenge.metric === "points" ? "points" : "tâches"} · bonus +{challenge.bonus_points}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color={T.white} />
+          </Pressable>
         )}
-
+         <View>
+          <Text style={s.sectionTitle}>🎯 À faire maintenant</Text>
+          {myTasks.filter(t => t.today_status === "todo").slice(0, 4).map((t: any) => (
+            <Pressable
+              key={t.id}
+              testID={`home-task-${t.id}`}
+              onPress={() => router.push("/(kid)/tasks")}
+              style={({ pressed }) => [s.taskRow, pressed && { opacity: 0.9 }]}
+            >
+              <View style={s.taskIcon}><Ionicons name="ellipse-outline" size={22} color={T.brand} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.taskTitle}>{t.title}</Text>
+                <Text style={s.taskSub}>{t.photo_required ? "📸 Photo requise" : "Simple"}</Text>
+              </View>
+              <View style={s.pointsBadge}><Text style={s.pointsBadgeText}>+{t.points_worth}</Text></View>
+            </Pressable>
+          ))}
+          {myTasks.filter(t => t.today_status === "todo").length === 0 && (
+            <EmptyState emoji="😴" title="Aucune quête aujourd'hui !" subtitle="Reviens demain pour de nouvelles missions" />
+          )}
+        </View>
+ 
+        <View>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm }}>
+            <Text style={s.sectionTitle}>🏅 Mes badges</Text>
+            <Pressable testID="see-all-badges" onPress={() => router.push("/shared/badges")}>
+              <Text style={s.seeAll}>Voir tout ({badges.unlocked_count}/{badges.total})</Text>
+            </Pressable>
+          </View>
+          <Pressable testID="badges-card" onPress={() => router.push("/shared/badges")}>
+            <Card>
+              {badges.list.length === 0 ? (
+                <Text style={s.hint}>Termine des tâches pour gagner tes premiers badges !</Text>
+              ) : (
+                <View style={{ flexDirection: "row", gap: S.md }}>
+                  {badges.list.map((b: any) => (
+                    <View key={b.id} style={s.badgeChip}>
+                      <Text style={{ fontSize: 34 }}>{b.emoji}</Text>
+                      <Text style={s.badgeChipText} numberOfLines={1}>{b.title}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </Card>
+          </Pressable>
+        </View>
+ 
         <View>
           <Text style={s.sectionTitle}>🏆 Top de la semaine</Text>
           <Card>
@@ -75,7 +160,7 @@ export default function ParentDashboard() {
             }
           </Card>
         </View>
-
+ 
         <View>
           <Text style={s.sectionTitle}>⚡ Raccourcis</Text>
           <View style={s.shortcuts}>
@@ -90,7 +175,7 @@ export default function ParentDashboard() {
             <Shortcut icon="people" label="Membres" onPress={() => router.push("/shared/members")} testID="short-members" />
           </View>
         </View>
-
+ 
         {penalties.length > 0 && (
           <View>
             <Text style={s.sectionTitle}>⚠️ Pénalités récentes</Text>
@@ -109,7 +194,7 @@ export default function ParentDashboard() {
     </SafeAreaView>
   );
 }
-
+ 
 function StatBox({ label, value, color, onPress, testID }: any) {
   return (
     <Pressable testID={testID} onPress={onPress} style={({ pressed }) => [s.stat, { borderColor: color }, pressed && { opacity: 0.85 }]}>
@@ -127,7 +212,7 @@ function Shortcut({ icon, label, onPress, testID, badge }: any) {
     </Pressable>
   );
 }
-
+ 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.surface },
   stat: { flex: 1, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, alignItems: "center" },
@@ -150,4 +235,31 @@ const s = StyleSheet.create({
   penaltyRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingVertical: 8 },
   penaltyText: { flex: 1, color: T.onSurface, fontWeight: "700", fontSize: 13 },
   penaltyPts: { color: T.red, fontWeight: "900" },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: S.md },
+  hello: { color: T.onSurfaceMuted, fontSize: 15, fontWeight: "700" },
+  name: { color: T.onSurface, fontWeight: "900", fontSize: 26, letterSpacing: -0.5 },
+  progressText: { fontWeight: "900", color: T.brand },
+  progressTrack: { height: 14, backgroundColor: T.surfaceSecondary, borderRadius: R.pill, overflow: "hidden", borderWidth: 2, borderColor: T.border },
+  progressFill: { height: "100%", backgroundColor: T.brand, borderRadius: R.pill },
+  seeAll: { color: T.brand, fontWeight: "800", fontSize: 13 },
+  challengeBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.brand, borderRadius: R.lg, padding: S.md, borderBottomWidth: 4, borderBottomColor: T.brandDark },
+  challengeDone: { backgroundColor: T.orange, borderBottomColor: "#C77500" },
+  challengeTitle: { color: T.white, fontWeight: "900", fontSize: 15 },
+  challengeTrack: { height: 10, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: R.pill, overflow: "hidden", marginVertical: 6 },
+  challengeFill: { height: "100%", borderRadius: R.pill },
+  challengeSub: { color: T.white, fontWeight: "700", fontSize: 12, opacity: 0.95 },
+  kidShortcuts: { flexDirection: "row", gap: S.sm },
+  kidShortcut: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, backgroundColor: T.white, paddingVertical: 14, borderRadius: R.lg, borderWidth: 2, borderColor: T.border },
+  kidShortcutText: { fontWeight: "800", color: T.onSurface, fontSize: 14 },
+  badgeChip: { flex: 1, alignItems: "center", gap: 4 },
+  badgeChipText: { fontSize: 11, fontWeight: "800", color: T.onSurface, textAlign: "center" },
+  taskRow: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: T.white, padding: S.md, borderRadius: R.lg, borderWidth: 2, borderColor: T.border, marginBottom: S.sm },
+  taskIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFFBE0", alignItems: "center", justifyContent: "center" },
+  taskTitle: { fontWeight: "800", color: T.onSurface, fontSize: 15 },
+  taskSub: { color: T.onSurfaceMuted, fontSize: 12, marginTop: 2 },
+  pointsBadge: { backgroundColor: T.gold, paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.pill },
+  pointsBadgeText: { fontWeight: "900", color: T.onSurface, fontSize: 13 },
+  podiumRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingVertical: S.sm },
+  podiumName: { flex: 1, fontWeight: "800", color: T.onSurface, fontSize: 15 },
+  podiumPts: { color: T.onSurfaceMuted, fontWeight: "800" },
 });

@@ -7,35 +7,35 @@ import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
-
+ 
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
+ 
   const onSubmit = async () => {
     setErr(null); setBusy(true);
     try { await login(email.trim(), password); } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
-
+ 
   const fillDemo = (who: string) => {
     setEmail(who);
     setPassword("demo1234");
   };
-
+ 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <Text style={styles.emoji}>🦸‍♂️</Text>
-            <Text style={styles.title} testID="app-title">TâcheHéros</Text>
+            <Text style={styles.title} testID="app-title">Tâches en Famille</Text>
             <Text style={styles.subtitle}>Transforme tes corvées en aventures !</Text>
           </View>
-
+ 
           <View style={styles.card}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -62,7 +62,7 @@ export default function Login() {
             >
               <Text style={styles.btnText}>{busy ? "Connexion..." : "Se connecter"}</Text>
             </Pressable>
-
+ 
             <Link href="/(auth)/register" asChild>
               <Pressable testID="go-register-button" style={styles.linkBtn}>
                 <Text style={styles.linkText}>Créer un compte</Text>
@@ -74,7 +74,7 @@ export default function Login() {
               </Pressable>
             </Link>
           </View>
-
+ 
           <View style={styles.demoCard}>
             <Text style={styles.demoTitle}>🎮 Comptes de démo</Text>
             <View style={{ gap: S.sm }}>
@@ -97,7 +97,7 @@ export default function Login() {
     </SafeAreaView>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.surface },
   scroll: { padding: S.lg, gap: S.lg },

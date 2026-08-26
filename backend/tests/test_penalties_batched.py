@@ -1,35 +1,35 @@
 """Regression tests for batched apply_daily_penalties() and send_evening_reminders().
-
+ 
 Only change since last passing iteration: N+1 find_one() calls per (task,user)
 were replaced with a single family-level completions query. Behaviour must be
 identical.
-
+ 
 We validate:
- - a child with an incomplete assigned daily task gets penalized (points -=
+- a child with an incomplete assigned daily task gets penalized (points -=
    penalty_points, streak reset to 0, penalty log created)
- - a child who already completed today (auto-approved) is NOT penalized
- - assigned_to filtering (task assigned to child A → child B not penalized)
- - unassigned (empty assigned_to) task penalizes every child that hasn't
+- a child who already completed today (auto-approved) is NOT penalized
+- assigned_to filtering (task assigned to child A → child B not penalized)
+- unassigned (empty assigned_to) task penalizes every child that hasn't
    completed
- - weekly / once tasks are NOT penalized by the daily job
- - demo regressions still work (login, tasks, challenges, events, badges,
+- weekly / once tasks are NOT penalized by the daily job
+- demo regressions still work (login, tasks, challenges, events, badges,
    complete)
 """
-
+ 
 import io
 import os
 import uuid
 import pytest
 import requests
-
+ 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://taches-en-famille.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
-
+ 
 PIN = "1357"
-
-
+ 
+ 
 # ---------------- helpers ----------------
-
+ 
 def _register_parent(s):
     suffix = uuid.uuid4().hex[:8]
     email = f"TEST_pen_p_{suffix}@ex.com"
@@ -48,8 +48,8 @@ def _register_parent(s):
         "hdr_pin": {**hdr, "X-Parent-Pin-Token": pr.json()["pin_token"]},
         "family_id": d["user"]["family_id"], "user": d["user"],
     }
-
-
+ 
+ 
 def _register_child(s, family_id, tag=""):
     suffix = uuid.uuid4().hex[:8]
     email = f"TEST_pen_c_{tag}_{suffix}@ex.com"
@@ -61,8 +61,8 @@ def _register_child(s, family_id, tag=""):
     d = r.json()
     return {"email": email, "user": d["user"],
             "hdr": {"Authorization": f"Bearer {d['access_token']}"}}
-
-
+ 
+ 
 def _create_task(s, hdr_pin, title, *, points=10, penalty=15,
                  frequency="daily", photo=False, assigned_to=None):
     r = s.post(f"{API}/tasks", json={
@@ -72,21 +72,21 @@ def _create_task(s, hdr_pin, title, *, points=10, penalty=15,
     }, headers=hdr_pin, timeout=15)
     assert r.status_code == 200, r.text
     return r.json()["id"]
-
-
+ 
+ 
 def _me(s, hdr):
     r = s.get(f"{API}/auth/me", headers=hdr, timeout=15)
     assert r.status_code == 200, r.text
     return r.json()
-
-
+ 
+ 
 # ---------------- fixtures ----------------
-
+ 
 @pytest.fixture(scope="session")
 def sess():
     return requests.Session()
-
-
+ 
+ 
 @pytest.fixture(scope="module")
 def fam(sess):
     """Fresh isolated family with 2 kids, several tasks."""
@@ -94,14 +94,14 @@ def fam(sess):
     kid_a = _register_child(sess, parent["family_id"], "A")
     kid_b = _register_child(sess, parent["family_id"], "B")
     return {"parent": parent, "kid_a": kid_a, "kid_b": kid_b}
-
-
+ 
+ 
 # ---------------- penalty tests ----------------
-
+ 
 class TestBatchedPenalties:
     def test_penalty_applied_for_incomplete_assigned_daily(self, sess, fam):
         parent, kid_a, kid_b = fam["parent"], fam["kid_a"], fam["kid_b"]
-
+ 
         # Task assigned to A only (no photo → could complete, but we don't)
         t_a = _create_task(sess, parent["hdr_pin"], "TEST_pen_only_A",
                            points=10, penalty=17, frequency="daily",
@@ -122,44 +122,44 @@ class TestBatchedPenalties:
         t_once = _create_task(sess, parent["hdr_pin"], "TEST_pen_once",
                               points=20, penalty=25, frequency="once",
                               photo=False, assigned_to=[kid_a["user"]["id"]])
-
+ 
         # Kid B completes t_b_done (auto-approved because no photo)
         rc = sess.post(f"{API}/tasks/{t_b_done}/complete",
                        headers=kid_b["hdr"], timeout=15)
         assert rc.status_code == 200, rc.text
         assert rc.json()["status"] == "approved"
-
+ 
         # Snapshot points/streak BEFORE running penalties
         a_before = _me(sess, kid_a["hdr"])
         b_before = _me(sess, kid_b["hdr"])
         a_pts_before, b_pts_before = a_before["points"], b_before["points"]
-
+ 
         # Run penalties
         rp = sess.post(f"{API}/dev/run-penalties",
-                       headers=parent["hdr"], timeout=60)
+                       headers=parent["hdr_pin"], timeout=60)
         assert rp.status_code == 200, rp.text
         assert rp.json().get("ok") is True
-
+ 
         # AFTER: A should be penalized for t_a (17) + t_all (11) = 28
         # AFTER: B should be penalized ONLY for t_all (11) — t_b_done is done,
         # weekly/once are excluded, t_a is not assigned to B.
         a_after = _me(sess, kid_a["hdr"])
         b_after = _me(sess, kid_b["hdr"])
-
+ 
         assert a_after["points"] == a_pts_before - (17 + 11), (
             f"kid_a expected -28, got delta={a_after['points']-a_pts_before}")
         assert b_after["points"] == b_pts_before - 11, (
             f"kid_b expected -11, got delta={b_after['points']-b_pts_before}")
-
+ 
         # Streak resets to 0 for anyone who got at least one penalty
         assert a_after["streak"] == 0
         assert b_after["streak"] == 0
-
+ 
         # /penalties log check
         pl = sess.get(f"{API}/penalties", headers=parent["hdr"], timeout=15)
         assert pl.status_code == 200
         logs = pl.json()["penalties"]
-
+ 
         # Build set of (user_id, task_id) recently penalized
         recent = {(p["user_id"], p["task_id"]) for p in logs}
         assert (kid_a["user"]["id"], t_a) in recent
@@ -170,16 +170,16 @@ class TestBatchedPenalties:
         assert (kid_a["user"]["id"], t_weekly) not in recent
         assert (kid_a["user"]["id"], t_once) not in recent
         assert (kid_b["user"]["id"], t_a) not in recent  # A-only task didn't hit B
-
+ 
         # Also verify each new penalty log has expected shape/values
         pen_a_only = next(p for p in logs
                           if p["user_id"] == kid_a["user"]["id"] and p["task_id"] == t_a)
         assert pen_a_only["points_deducted"] == 17
         assert pen_a_only["task_title"] == "TEST_pen_only_A"
-
-
+ 
+ 
 # ---------------- demo regression sanity ----------------
-
+ 
 class TestDemoRegression:
     @pytest.fixture(scope="class")
     def demo_parent(self, sess):
@@ -196,7 +196,7 @@ class TestDemoRegression:
         return {"hdr": hdr,
                 "hdr_pin": {**hdr, "X-Parent-Pin-Token": pr.json()["pin_token"]},
                 "user": d["user"]}
-
+ 
     @pytest.fixture(scope="class")
     def demo_lea(self, sess):
         r = sess.post(f"{API}/auth/login",
@@ -207,11 +207,11 @@ class TestDemoRegression:
         assert d["user"]["role"] == "child"
         return {"hdr": {"Authorization": f"Bearer {d['access_token']}"},
                 "user": d["user"]}
-
+ 
     def test_login_papa_and_lea(self, demo_parent, demo_lea):
         assert demo_parent["user"]["email"] == "papa@demo.fr"
         assert demo_lea["user"]["email"] == "lea@demo.fr"
-
+ 
     def test_get_tasks(self, sess, demo_lea):
         r = sess.get(f"{API}/tasks", headers=demo_lea["hdr"], timeout=15)
         assert r.status_code == 200
@@ -219,7 +219,7 @@ class TestDemoRegression:
         assert len(tasks) > 0
         assert "today_status" in tasks[0]
         assert "frequency" in tasks[0]
-
+ 
     def test_complete_non_photo_task(self, sess, demo_parent, demo_lea):
         # create a temp non-photo daily task assigned to lea for a clean test
         tid = _create_task(sess, demo_parent["hdr_pin"],
@@ -236,19 +236,19 @@ class TestDemoRegression:
             assert after == before + 4
         finally:
             sess.delete(f"{API}/tasks/{tid}", headers=demo_parent["hdr_pin"], timeout=15)
-
+ 
     def test_get_challenges(self, sess, demo_lea):
         r = sess.get(f"{API}/challenges", headers=demo_lea["hdr"], timeout=15)
         assert r.status_code == 200
         d = r.json()
         # response is expected to have at least current/history keys or challenge doc
         assert isinstance(d, dict)
-
+ 
     def test_get_events_recurring(self, sess, demo_lea):
         r = sess.get(f"{API}/events", headers=demo_lea["hdr"], timeout=15)
         assert r.status_code == 200
         assert "events" in r.json()
-
+ 
     def test_get_badges(self, sess, demo_lea):
         r = sess.get(f"{API}/badges", headers=demo_lea["hdr"], timeout=15)
         assert r.status_code == 200

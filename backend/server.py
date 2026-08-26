@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional, List, Literal
 from pathlib import Path
-
+ 
 import jwt
 import httpx
 import requests
@@ -22,45 +22,53 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pwdlib import PasswordHash
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
+ 
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
-
-# -------- Config --------
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
-JWT_SECRET = os.environ["JWT_SECRET"]
+ 
+USE_MOCK = os.environ.get("USE_MOCK_DB", "false").lower() == "true"
+ 
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://127.0.0.1:27017/taches_famille")
+DB_NAME = os.environ.get("DB_NAME", "taches_famille")
+JWT_SECRET = os.environ.get("JWT_SECRET", "secret-dev-key")
 ALGO = "HS256"
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 PUSH_KEY = os.environ.get("EMERGENT_PUSH_KEY", "placeholder")
 APP_NAME = "tachehero"
-
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
-
+ 
+# Gestion du mock si pas de serveur MongoDB local
+if os.environ.get("USE_MOCK_DB", "false").lower() == "true":
+    from mongomock_motor import AsyncMongoMockClient
+    client = AsyncMongoMockClient()
+    db = client[DB_NAME]
+else:
+    client = AsyncIOMotorClient(MONGO_URL)
+    db = client[DB_NAME]
+ 
+ 
 app = FastAPI(title="TâcheHéros API")
 api = APIRouter(prefix="/api")
 passwords = PasswordHash.recommended()
 DUMMY = passwords.hash("not-a-real-password-not-a-real-password")
 oauth2 = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
-
+ 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("tachehero")
-
+ 
 # -------- Utils --------
 def now(): return datetime.now(timezone.utc)
 def iso(dt: datetime) -> str: return dt.replace(tzinfo=timezone.utc).isoformat() if dt.tzinfo is None else dt.isoformat()
 def new_id() -> str: return str(uuid.uuid4())
-
+ 
 def make_token(user, minutes=60*24*7, purpose="access"):
     return jwt.encode({
         "sub": user["id"], "role": user["role"], "family_id": user["family_id"],
         "purpose": purpose, "jti": secrets.token_urlsafe(8),
         "iat": now(), "exp": now() + timedelta(minutes=minutes)
     }, JWT_SECRET, algorithm=ALGO)
-
+ 
 async def current_user(token: Optional[str] = Depends(oauth2)):
     if not token:
         raise HTTPException(401, "Non authentifié")
@@ -74,7 +82,7 @@ async def current_user(token: Optional[str] = Depends(oauth2)):
         return user
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Jeton invalide")
-
+ 
 async def parent_pin(request: Request, user=Depends(current_user)):
     if user["role"] != "parent":
         raise HTTPException(403, "Rôle parent requis")
@@ -88,10 +96,10 @@ async def parent_pin(request: Request, user=Depends(current_user)):
     except jwt.InvalidTokenError:
         raise HTTPException(403, "PIN parent invalide")
     return user
-
+ 
 # -------- Object Storage --------
 _storage_key = None
-
+ 
 def _init_storage_sync():
     global _storage_key
     if _storage_key:
@@ -102,7 +110,7 @@ def _init_storage_sync():
     r.raise_for_status()
     _storage_key = r.json()["storage_key"]
     return _storage_key
-
+ 
 def _put_object_sync(path: str, data: bytes, content_type: str):
     key = _init_storage_sync()
     r = requests.put(f"{STORAGE_URL}/objects/{path}",
@@ -117,7 +125,7 @@ def _put_object_sync(path: str, data: bytes, content_type: str):
                          data=data, timeout=120)
     r.raise_for_status()
     return r.json()
-
+ 
 def _get_object_sync(path: str):
     key = _init_storage_sync()
     r = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
@@ -128,14 +136,14 @@ def _get_object_sync(path: str):
         r = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
     r.raise_for_status()
     return r.content, r.headers.get("Content-Type", "application/octet-stream")
-
+ 
 # -------- Push --------
 _push_client = httpx.AsyncClient(
     base_url="https://integrations.emergentagent.com",
     headers={"X-Push-Key": PUSH_KEY},
     timeout=10.0,
 )
-
+ 
 async def send_push(recipients: List[str], data: dict, idempotency: Optional[str] = None):
     if not recipients:
         return
@@ -150,7 +158,7 @@ async def send_push(recipients: List[str], data: dict, idempotency: Optional[str
             log.warning(f"push failed {r.status_code}: {r.text[:200]}")
     except Exception as e:
         log.warning(f"push error: {e}")
-
+ 
 # -------- Models --------
 class Register(BaseModel):
     email: EmailStr
@@ -161,22 +169,22 @@ class Register(BaseModel):
     family_name: Optional[str] = None
     avatar: Optional[str] = None
     pin: Optional[str] = Field(default=None, pattern=r"^\d{4}$")
-
+ 
 class LoginBody(BaseModel):
     email: EmailStr
     password: str
-
+ 
 class PinBody(BaseModel):
     pin: str = Field(pattern=r"^\d{4}$")
-
+ 
 class DeleteAccountBody(BaseModel):
     password: str
-
+ 
 class SetPushToken(BaseModel):
     user_id: str
     platform: str
     device_token: str
-
+ 
 class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = ""
@@ -186,13 +194,13 @@ class TaskCreate(BaseModel):
     assigned_to: List[str] = []  # user ids
     photo_required: bool = True
     due_time: Optional[str] = "20:00"  # HH:MM
-
+ 
 class RewardCreate(BaseModel):
     title: str
     description: Optional[str] = ""
     point_cost: int
     icon: Optional[str] = "🎁"
-
+ 
 class EventCreate(BaseModel):
     title: str
     description: Optional[str] = ""
@@ -201,7 +209,7 @@ class EventCreate(BaseModel):
     assigned_users: List[str] = []
     color: Optional[str] = "#58CC02"
     recurrence: Literal["none", "weekly"] = "none"
-
+ 
 class EventUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -209,27 +217,27 @@ class EventUpdate(BaseModel):
     end_time: Optional[str] = None
     color: Optional[str] = None
     recurrence: Optional[Literal["none", "weekly"]] = None
-
+ 
 class ShoppingCreate(BaseModel):
     item_name: str
-
+ 
 class ValidateBody(BaseModel):
     approved: bool
-
+ 
 class ChallengeCreate(BaseModel):
     title: str
     description: Optional[str] = ""
     metric: Literal["tasks", "points"] = "tasks"
     target: int = Field(default=20, ge=1, le=1000)
     bonus_points: int = Field(default=50, ge=0, le=1000)
-
+ 
 # -------- Auth --------
 @api.post("/auth/register")
 async def register(body: Register):
     email = body.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "Email déjà utilisé")
-
+ 
     if body.family_id:
         family = await db.families.find_one({"id": body.family_id}, {"_id": 0})
         if not family:
@@ -242,10 +250,10 @@ async def register(body: Register):
             "name": body.family_name or f"Famille de {body.name}",
             "created_at": now(),
         })
-
+ 
     if body.role == "parent" and not body.pin:
         raise HTTPException(400, "PIN parent requis à l'inscription")
-
+ 
     user = {
         "id": new_id(),
         "email": email,
@@ -266,12 +274,12 @@ async def register(body: Register):
     if body.role == "parent":
         user["pin_hash"] = passwords.hash(body.pin)
     await db.users.insert_one(user)
-
+ 
     token = make_token(user)
     safe = {k: v for k, v in user.items() if k not in ("password_hash", "pin_hash", "_id")}
     return {"access_token": token, "user": safe, "family_id": fam_id}
-
-
+ 
+ 
 @api.post("/auth/login")
 async def login(body: LoginBody):
     email = body.email.lower()
@@ -282,13 +290,13 @@ async def login(body: LoginBody):
     token = make_token(user)
     safe = {k: v for k, v in user.items() if k not in ("password_hash", "pin_hash", "_id")}
     return {"access_token": token, "user": safe}
-
-
+ 
+ 
 @api.get("/auth/me")
 async def me(user=Depends(current_user)):
     return user
-
-
+ 
+ 
 @api.delete("/auth/account")
 async def delete_account(body: DeleteAccountBody, user=Depends(current_user)):
     doc = await db.users.find_one({"id": user["id"]})
@@ -308,8 +316,8 @@ async def delete_account(body: DeleteAccountBody, user=Depends(current_user)):
                      db.completions, db.penalties, db.claims):
             await coll.delete_many({"family_id": fam_id})
     return {"ok": True, "family_deleted": remaining == 0}
-
-
+ 
+ 
 @api.post("/auth/pin/verify")
 async def verify_pin(body: PinBody, user=Depends(current_user)):
     if user["role"] != "parent":
@@ -324,8 +332,8 @@ async def verify_pin(body: PinBody, user=Depends(current_user)):
         "iat": now(), "exp": now() + timedelta(minutes=30),
     }, JWT_SECRET, algorithm=ALGO)
     return {"pin_token": tok}
-
-
+ 
+ 
 # -------- Family --------
 @api.get("/family")
 async def get_family(user=Depends(current_user)):
@@ -335,8 +343,8 @@ async def get_family(user=Depends(current_user)):
         {"_id": 0, "password_hash": 0, "pin_hash": 0}
     ).to_list(100)
     return {"family": fam, "members": members}
-
-
+ 
+ 
 @api.get("/family/leaderboard")
 async def leaderboard(user=Depends(current_user)):
     members = await db.users.find(
@@ -345,8 +353,8 @@ async def leaderboard(user=Depends(current_user)):
     ).to_list(100)
     members.sort(key=lambda u: u.get("points", 0), reverse=True)
     return {"members": members}
-
-
+ 
+ 
 # -------- Push registration --------
 @api.post("/register-push", status_code=201)
 async def register_push(body: SetPushToken, user=Depends(current_user)):
@@ -360,14 +368,14 @@ async def register_push(body: SetPushToken, user=Depends(current_user)):
     except Exception as e:
         log.warning(f"push register err: {e}")
     return {"status": "ok"}
-
-
+ 
+ 
 # -------- Tasks --------
 def _task_out(t: dict) -> dict:
     t.pop("_id", None)
     return t
-
-
+ 
+ 
 @api.get("/tasks")
 async def list_tasks(user=Depends(current_user)):
     tasks = await db.tasks.find({"family_id": user["family_id"], "active": {"$ne": False}}, {"_id": 0}).to_list(500)
@@ -382,8 +390,8 @@ async def list_tasks(user=Depends(current_user)):
         t["today_status"] = c["status"] if c else "todo"
         t["today_completion_id"] = c["id"] if c else None
     return {"tasks": tasks}
-
-
+ 
+ 
 @api.post("/tasks")
 async def create_task(body: TaskCreate, user=Depends(parent_pin)):
     t = {
@@ -403,26 +411,26 @@ async def create_task(body: TaskCreate, user=Depends(parent_pin)):
     }
     await db.tasks.insert_one(t)
     return _task_out(t)
-
-
+ 
+ 
 @api.delete("/tasks/{task_id}")
 async def delete_task(task_id: str, user=Depends(parent_pin)):
     await db.tasks.update_one({"id": task_id, "family_id": user["family_id"]}, {"$set": {"active": False}})
     return {"ok": True}
-
-
+ 
+ 
 # -------- Completions & photo proof --------
 @api.post("/tasks/{task_id}/complete")
 async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), user=Depends(current_user)):
     task = await db.tasks.find_one({"id": task_id, "family_id": user["family_id"]}, {"_id": 0})
     if not task:
         raise HTTPException(404, "Tâche introuvable")
-
+ 
     day_key = date.today().isoformat()
     existing = await db.completions.find_one({"task_id": task_id, "user_id": user["id"], "day": day_key})
     if existing:
         raise HTTPException(409, "Déjà soumis aujourd'hui")
-
+ 
     photo_path = None
     if task.get("photo_required"):
         if not photo:
@@ -438,7 +446,7 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         except Exception as e:
             log.exception("upload failed")
             raise HTTPException(500, f"Échec du téléversement: {e}")
-
+ 
     comp = {
         "id": new_id(),
         "task_id": task_id,
@@ -455,7 +463,7 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         "created_at": now(),
     }
     await db.completions.insert_one(comp)
-
+ 
     # if auto approve (no photo required), award immediately
     new_badges = []
     if comp["status"] == "approved":
@@ -470,12 +478,12 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
             "message": f"{user['name']} a terminé « {task['title']} ». Votez !",
             "action_url": "/validate",
         })
-
+ 
     comp.pop("_id", None)
     comp["new_badges"] = new_badges
     return comp
-
-
+ 
+ 
 async def _award(user_id: str, pts: int):
     u = await db.users.find_one({"id": user_id})
     if not u:
@@ -502,8 +510,8 @@ async def _award(user_id: str, pts: int):
             "message": " ".join(f"{b['emoji']} {b['title']}" for b in newly),
         })
     return newly
-
-
+ 
+ 
 # -------- Badges --------
 BADGES = [
     {"id": "first_quest", "title": "Première quête", "emoji": "🌱", "description": "Termine ta première tâche", "type": "tasks", "threshold": 1},
@@ -517,16 +525,16 @@ BADGES = [
     {"id": "earn_500", "title": "Petite fortune", "emoji": "💎", "description": "Gagne 500 points au total", "type": "earned", "threshold": 500},
     {"id": "earn_1000", "title": "Trésor royal", "emoji": "🏰", "description": "Gagne 1000 points au total", "type": "earned", "threshold": 1000},
 ]
-
-
+ 
+ 
 def _badge_stats(u: dict) -> dict:
     return {
         "tasks": u.get("tasks_completed", 0),
         "streak": u.get("streak", 0),
         "earned": u.get("total_earned", 0),
     }
-
-
+ 
+ 
 async def _unlock_badges(u: dict):
     """Persist and return badge defs newly unlocked for user doc `u`."""
     stats = _badge_stats(u)
@@ -536,8 +544,8 @@ async def _unlock_badges(u: dict):
         await db.users.update_one({"id": u["id"]},
                                   {"$addToSet": {"badges_unlocked": {"$each": [b["id"] for b in newly]}}})
     return newly
-
-
+ 
+ 
 @api.get("/badges")
 async def get_badges(user=Depends(current_user)):
     doc = await db.users.find_one({"id": user["id"]})
@@ -555,15 +563,15 @@ async def get_badges(user=Depends(current_user)):
             "progress": min(1.0, cur / b["threshold"]) if b["threshold"] else 1.0,
         })
     return {"badges": out, "unlocked_count": len(unlocked & {b["id"] for b in BADGES}), "total": len(BADGES)}
-
-
+ 
+ 
 # -------- Weekly family challenges --------
 def week_start_key(d: Optional[date] = None) -> str:
     d = d or date.today()
     monday = d - timedelta(days=d.weekday())
     return monday.isoformat()
-
-
+ 
+ 
 async def _challenge_progress(ch: dict) -> int:
     start_dt = datetime.fromisoformat(ch["week_start"]).replace(tzinfo=timezone.utc)
     comps = await db.completions.find(
@@ -573,8 +581,8 @@ async def _challenge_progress(ch: dict) -> int:
     if ch.get("metric") == "points":
         return sum(c.get("points_worth", 0) for c in comps)
     return len(comps)
-
-
+ 
+ 
 async def _check_challenge_completion(family_id: str):
     ws = week_start_key()
     ch = await db.challenges.find_one({"family_id": family_id, "week_start": ws, "status": "active"})
@@ -596,8 +604,8 @@ async def _check_challenge_completion(family_id: str):
         ch.pop("_id", None)
         return ch
     return None
-
-
+ 
+ 
 @api.get("/challenges")
 async def get_challenges(user=Depends(current_user)):
     ws = week_start_key()
@@ -609,8 +617,8 @@ async def get_challenges(user=Depends(current_user)):
         {"family_id": user["family_id"], "status": "completed"}, {"_id": 0}
     ).sort("completed_at", -1).to_list(20)
     return {"challenge": ch, "history": history, "week_start": ws}
-
-
+ 
+ 
 @api.post("/challenges")
 async def create_challenge(body: ChallengeCreate, user=Depends(parent_pin)):
     ws = week_start_key()
@@ -639,14 +647,14 @@ async def create_challenge(body: ChallengeCreate, user=Depends(parent_pin)):
     # In case it's already met by existing completions this week.
     await _check_challenge_completion(user["family_id"])
     return ch
-
-
+ 
+ 
 @api.delete("/challenges/{cid}")
 async def delete_challenge(cid: str, user=Depends(parent_pin)):
     await db.challenges.delete_one({"id": cid, "family_id": user["family_id"]})
     return {"ok": True}
-
-
+ 
+ 
 @api.get("/completions/pending")
 async def pending_completions(user=Depends(current_user)):
     comps = await db.completions.find(
@@ -658,8 +666,8 @@ async def pending_completions(user=Depends(current_user)):
         my = next((v for v in c.get("votes", []) if v["user_id"] == user["id"]), None)
         c["my_vote"] = my["approved"] if my else None
     return {"completions": comps}
-
-
+ 
+ 
 @api.post("/completions/{comp_id}/vote")
 async def vote_completion(comp_id: str, body: ValidateBody, user=Depends(current_user)):
     comp = await db.completions.find_one({"id": comp_id, "family_id": user["family_id"]})
@@ -669,16 +677,16 @@ async def vote_completion(comp_id: str, body: ValidateBody, user=Depends(current
         raise HTTPException(400, "Déjà traitée")
     if comp["user_id"] == user["id"]:
         raise HTTPException(400, "Vous ne pouvez pas voter pour vous-même")
-
+ 
     votes = [v for v in comp.get("votes", []) if v["user_id"] != user["id"]]
     votes.append({"user_id": user["id"], "user_name": user["name"], "approved": body.approved})
     await db.completions.update_one({"id": comp_id}, {"$set": {"votes": votes}})
-
+ 
     # Auto-approve if >=1 approve OR resolve if parent votes
     approves = sum(1 for v in votes if v["approved"])
     rejects = sum(1 for v in votes if not v["approved"])
     is_parent = user["role"] == "parent"
-
+ 
     resolved = False
     if is_parent or approves >= 1:
         if approves > rejects or (is_parent and body.approved):
@@ -698,8 +706,8 @@ async def vote_completion(comp_id: str, body: ValidateBody, user=Depends(current
             })
             resolved = True
     return {"ok": True, "resolved": resolved}
-
-
+ 
+ 
 @api.get("/photos/{path:path}")
 async def get_photo(path: str, request: Request, token: Optional[str] = None):
     # Reject path traversal / absolute paths outright.
@@ -731,29 +739,29 @@ async def get_photo(path: str, request: Request, token: Optional[str] = None):
         return Response(content=content, media_type=ct)
     except Exception:
         raise HTTPException(404, "Photo introuvable")
-
-
+ 
+ 
 # -------- Rewards --------
 @api.get("/rewards")
 async def list_rewards(user=Depends(current_user)):
     rewards = await db.rewards.find({"family_id": user["family_id"]}, {"_id": 0}).to_list(200)
     return {"rewards": rewards}
-
-
+ 
+ 
 @api.post("/rewards")
 async def create_reward(body: RewardCreate, user=Depends(parent_pin)):
     r = {"id": new_id(), "family_id": user["family_id"], **body.model_dump(), "created_at": now()}
     await db.rewards.insert_one(r)
     r.pop("_id", None)
     return r
-
-
+ 
+ 
 @api.delete("/rewards/{rid}")
 async def del_reward(rid: str, user=Depends(parent_pin)):
     await db.rewards.delete_one({"id": rid, "family_id": user["family_id"]})
     return {"ok": True}
-
-
+ 
+ 
 @api.post("/rewards/{rid}/claim")
 async def claim_reward(rid: str, user=Depends(current_user)):
     r = await db.rewards.find_one({"id": rid, "family_id": user["family_id"]})
@@ -777,14 +785,14 @@ async def claim_reward(rid: str, user=Depends(current_user)):
     })
     claim.pop("_id", None)
     return claim
-
-
+ 
+ 
 @api.get("/claims")
 async def list_claims(user=Depends(current_user)):
     claims = await db.claims.find({"family_id": user["family_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"claims": claims}
-
-
+ 
+ 
 # -------- Calendar --------
 def _expand_events(events: list) -> list:
     """Expand weekly-recurring events into individual occurrences within a window."""
@@ -814,14 +822,14 @@ def _expand_events(events: list) -> list:
             guard += 1
     out.sort(key=lambda x: x["start_time"])
     return out
-
-
+ 
+ 
 @api.get("/events")
 async def list_events(user=Depends(current_user)):
     events = await db.events.find({"family_id": user["family_id"]}, {"_id": 0}).sort("start_time", 1).to_list(500)
     return {"events": _expand_events(events)}
-
-
+ 
+ 
 @api.post("/events")
 async def create_event(body: EventCreate, user=Depends(current_user)):
     e = {"id": new_id(), "family_id": user["family_id"], **body.model_dump(),
@@ -834,14 +842,14 @@ async def create_event(body: EventCreate, user=Depends(current_user)):
     await send_push(others, {"title": "Nouvel événement 📅", "message": label})
     e.pop("_id", None)
     return e
-
-
+ 
+ 
 @api.delete("/events/{eid}")
 async def del_event(eid: str, user=Depends(current_user)):
     await db.events.delete_one({"id": eid, "family_id": user["family_id"]})
     return {"ok": True}
-
-
+ 
+ 
 @api.patch("/events/{eid}")
 async def update_event(eid: str, body: EventUpdate, user=Depends(current_user)):
     if user["role"] != "parent":
@@ -853,15 +861,15 @@ async def update_event(eid: str, body: EventUpdate, user=Depends(current_user)):
     if res.matched_count == 0:
         raise HTTPException(404, "Événement introuvable")
     return {"ok": True}
-
-
+ 
+ 
 # -------- Shopping list --------
 @api.get("/shopping")
 async def list_shopping(user=Depends(current_user)):
     items = await db.shopping.find({"family_id": user["family_id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return {"items": items}
-
-
+ 
+ 
 @api.post("/shopping")
 async def add_shopping(body: ShoppingCreate, user=Depends(current_user)):
     it = {"id": new_id(), "family_id": user["family_id"], "item_name": body.item_name,
@@ -869,8 +877,8 @@ async def add_shopping(body: ShoppingCreate, user=Depends(current_user)):
     await db.shopping.insert_one(it)
     it.pop("_id", None)
     return it
-
-
+ 
+ 
 @api.patch("/shopping/{iid}")
 async def toggle_shopping(iid: str, user=Depends(current_user)):
     it = await db.shopping.find_one({"id": iid, "family_id": user["family_id"]})
@@ -878,21 +886,21 @@ async def toggle_shopping(iid: str, user=Depends(current_user)):
         raise HTTPException(404, "Introuvable")
     await db.shopping.update_one({"id": iid}, {"$set": {"is_bought": not it.get("is_bought", False)}})
     return {"ok": True}
-
-
+ 
+ 
 @api.delete("/shopping/{iid}")
 async def del_shopping(iid: str, user=Depends(current_user)):
     await db.shopping.delete_one({"id": iid, "family_id": user["family_id"]})
     return {"ok": True}
-
-
+ 
+ 
 # -------- Penalties --------
 @api.get("/penalties")
 async def penalties(user=Depends(current_user)):
     logs = await db.penalties.find({"family_id": user["family_id"]}, {"_id": 0}).sort("timestamp", -1).to_list(100)
     return {"penalties": logs}
-
-
+ 
+ 
 async def apply_daily_penalties(only_family_id: Optional[str] = None):
     """Runs at 20:00 daily: check incomplete daily tasks and apply penalty.
     Idempotent per (user, task, day). Optionally scoped to a single family."""
@@ -931,8 +939,8 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
                     "title": "Pénalité appliquée ⚠️",
                     "message": f"-{pts} pts pour « {t['title'] }» non fait",
                 })
-
-
+ 
+ 
 async def send_evening_reminders():
     """Runs at 19:00: warn users with unfinished tasks."""
     log.info("Sending 19:00 reminders")
@@ -955,32 +963,32 @@ async def send_evening_reminders():
                     "title": "Il te reste 1h ! ⏰",
                     "message": f"{len(missing)} tâche(s) à finir avant 20h : {', '.join(missing[:3])}",
                 })
-
-
+ 
+ 
 @api.post("/dev/run-penalties")
 async def dev_run_penalties(user=Depends(parent_pin)):
     """Manual trigger — parent + PIN only, scoped to the caller's own family."""
     await apply_daily_penalties(only_family_id=user["family_id"])
     return {"ok": True}
-
-
+ 
+ 
 # -------- Seed demo --------
 @api.post("/dev/seed-demo")
 async def seed_demo_route(request: Request):
     if request.headers.get("X-Admin-Key") != JWT_SECRET:
         raise HTTPException(403, "Interdit")
     return await _seed_demo()
-
-
+ 
+ 
 async def _seed_demo():
     """Create a demo French family. Idempotent-ish: skips if already exists."""
     existing = await db.users.find_one({"email": "papa@demo.fr"})
     if existing:
         return {"ok": True, "message": "Déjà initialisé", "family_id": existing["family_id"]}
-
+ 
     fam_id = new_id()
     await db.families.insert_one({"id": fam_id, "name": "Famille Dupont", "created_at": now()})
-
+ 
     users_to_create = [
         {"email": "papa@demo.fr", "name": "Papa", "role": "parent", "pin": "1234", "avatar": "🦸"},
         {"email": "lea@demo.fr", "name": "Léa", "role": "child", "avatar": "🐻", "points": 320, "streak": 5, "total_earned": 560, "tasks_completed": 22},
@@ -1004,7 +1012,7 @@ async def _seed_demo():
         if u["role"] == "parent":
             doc["pin_hash"] = passwords.hash(u["pin"])
         await db.users.insert_one(doc)
-
+ 
     child_ids = [ids["lea@demo.fr"], ids["hugo@demo.fr"], ids["emma@demo.fr"]]
     tasks = [
         {"title": "Ranger sa chambre", "points_worth": 20, "penalty_points": 30, "frequency": "daily", "photo_required": True, "assigned_to": child_ids},
@@ -1019,7 +1027,7 @@ async def _seed_demo():
             "id": new_id(), "family_id": fam_id, "description": "", "due_time": "20:00",
             "created_by": ids["papa@demo.fr"], "created_at": now(), "active": True, **t
         })
-
+ 
     rewards = [
         {"title": "1h de console", "point_cost": 200, "icon": "🎮"},
         {"title": "Sortie ciné", "point_cost": 500, "icon": "🎬"},
@@ -1031,7 +1039,7 @@ async def _seed_demo():
     for r in rewards:
         await db.rewards.insert_one({"id": new_id(), "family_id": fam_id, "description": "",
                                      "created_at": now(), **r})
-
+ 
     events = [
         {"title": "Rendez-vous dentiste", "start_time": (now() + timedelta(days=2)).isoformat(), "color": "#FF9600"},
         {"title": "Anniversaire de Mamie", "start_time": (now() + timedelta(days=5)).isoformat(), "color": "#FFC800"},
@@ -1041,13 +1049,13 @@ async def _seed_demo():
         await db.events.insert_one({"id": new_id(), "family_id": fam_id, "description": "",
                                     "assigned_users": [], "created_by": ids["papa@demo.fr"],
                                     "created_at": now(), "end_time": None, **e})
-
+ 
     shopping = ["Lait", "Pain", "Pommes", "Yaourts", "Pâtes"]
     for s in shopping:
         await db.shopping.insert_one({"id": new_id(), "family_id": fam_id, "item_name": s,
                                       "is_bought": False, "added_by": ids["papa@demo.fr"],
                                       "added_by_name": "Papa", "created_at": now()})
-
+ 
     await db.challenges.insert_one({
         "id": new_id(), "family_id": fam_id,
         "title": "Semaine au top", "description": "Terminez 15 tâches en famille cette semaine !",
@@ -1055,28 +1063,28 @@ async def _seed_demo():
         "week_start": week_start_key(), "status": "active", "rewarded": False,
         "created_by": ids["papa@demo.fr"], "created_at": now(), "completed_at": None,
     })
-
+ 
     return {"ok": True, "family_id": fam_id, "credentials": [
         {"role": "parent", "email": "papa@demo.fr", "password": "demo1234", "pin": "1234"},
         {"role": "child", "email": "lea@demo.fr", "password": "demo1234"},
         {"role": "child", "email": "hugo@demo.fr", "password": "demo1234"},
         {"role": "child", "email": "emma@demo.fr", "password": "demo1234"},
     ]}
-
-
+ 
+ 
 @api.get("/")
 async def root():
     return {"app": "TâcheHéros", "ok": True}
-
-
+ 
+ 
 # -------- Email (Emergent managed Resend) --------
 import secrets as _secrets
 from html import escape as _esc
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "TâcheHéros")
-
-
+ 
+ 
 async def _send_email(to: str, subject: str, html: str):
     if "<form" in html.lower() or "<input" in html.lower():
         raise ValueError("Email must not contain forms")
@@ -1090,27 +1098,27 @@ async def _send_email(to: str, subject: str, html: str):
     except Exception as e:
         log.error(f"email send error: {e}")
         raise HTTPException(502, "Échec de l'envoi de l'email")
-
-
+ 
+ 
 class ForgotBody(BaseModel):
     email: EmailStr
-
+ 
 class ResetBody(BaseModel):
     email: EmailStr
     code: str = Field(pattern=r"^\d{6}$")
     new_password: str = Field(min_length=6, max_length=128)
-
+ 
 class ProfileUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=40)
-
+ 
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=6, max_length=128)
-
+ 
 class FamilyUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=60)
-
-
+ 
+ 
 @api.post("/auth/forgot-password")
 async def forgot_password(body: ForgotBody):
     email = body.email.lower()
@@ -1135,8 +1143,8 @@ async def forgot_password(body: ForgotBody):
         except Exception:
             pass
     return {"ok": True}
-
-
+ 
+ 
 @api.post("/auth/reset-password")
 async def reset_password(body: ResetBody):
     email = body.email.lower()
@@ -1153,14 +1161,14 @@ async def reset_password(body: ResetBody):
         "$unset": {"reset_code_hash": "", "reset_expires": ""},
     })
     return {"ok": True}
-
-
+ 
+ 
 @api.patch("/auth/profile")
 async def update_profile(body: ProfileUpdate, user=Depends(current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"name": body.name.strip()}})
     return {"ok": True}
-
-
+ 
+ 
 @api.patch("/auth/password")
 async def change_password(body: PasswordChange, user=Depends(current_user)):
     doc = await db.users.find_one({"id": user["id"]})
@@ -1168,16 +1176,16 @@ async def change_password(body: PasswordChange, user=Depends(current_user)):
         raise HTTPException(401, "Mot de passe actuel incorrect")
     await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": passwords.hash(body.new_password)}})
     return {"ok": True}
-
-
+ 
+ 
 @api.patch("/family")
 async def update_family(body: FamilyUpdate, user=Depends(current_user)):
     if user["role"] != "parent":
         raise HTTPException(403, "Seul un parent peut renommer la famille")
     await db.families.update_one({"id": user["family_id"]}, {"$set": {"name": body.name.strip()}})
     return {"ok": True}
-
-
+ 
+ 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -1186,8 +1194,8 @@ class TaskUpdate(BaseModel):
     frequency: Optional[Literal["daily", "weekly", "once"]] = None
     assigned_to: Optional[List[str]] = None
     photo_required: Optional[bool] = None
-
-
+ 
+ 
 @api.patch("/tasks/{task_id}")
 async def update_task(task_id: str, body: TaskUpdate, user=Depends(parent_pin)):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -1197,16 +1205,16 @@ async def update_task(task_id: str, body: TaskUpdate, user=Depends(parent_pin)):
     if res.matched_count == 0:
         raise HTTPException(404, "Tâche introuvable")
     return {"ok": True}
-
-
+ 
+ 
 class ChallengeUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     target: Optional[int] = None
     bonus_points: Optional[int] = None
     metric: Optional[Literal["tasks", "points"]] = None
-
-
+ 
+ 
 @api.patch("/challenges/{cid}")
 async def update_challenge(cid: str, body: ChallengeUpdate, user=Depends(parent_pin)):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -1217,17 +1225,17 @@ async def update_challenge(cid: str, body: ChallengeUpdate, user=Depends(parent_
         raise HTTPException(404, "Défi introuvable")
     await _check_challenge_completion(user["family_id"])
     return {"ok": True}
-
-
-
+ 
+ 
+ 
 app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
-
+ 
 # Scheduler
 scheduler = AsyncIOScheduler(timezone="Europe/Paris")
-
-
+ 
+ 
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
@@ -1242,10 +1250,14 @@ async def startup():
         await _seed_demo()
     except Exception as e:
         log.warning(f"seed err: {e}")
-
-
+ 
+ 
 @app.on_event("shutdown")
 async def shutdown():
     scheduler.shutdown(wait=False)
     client.close()
     await _push_client.aclose()
+ 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

@@ -6,10 +6,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
-
+ 
 const AVATARS_PARENT = ["🦸", "👩", "🧑", "🦸‍♀️"];
 const AVATARS_CHILD = ["🐻", "🦊", "🐼", "🐯", "🐸", "🦄"];
-
+ 
 export default function Register() {
   const { register } = useAuth();
   const [role, setRole] = useState<"parent" | "child">("parent");
@@ -23,9 +23,9 @@ export default function Register() {
   const [avatar, setAvatar] = useState<string>("🦸");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
+ 
   const avatars = role === "parent" ? AVATARS_PARENT : AVATARS_CHILD;
-
+ 
   const onSubmit = async () => {
     setErr(null); setBusy(true);
     try {
@@ -47,13 +47,13 @@ export default function Register() {
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
-
+ 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Créer un compte</Text>
-
+ 
           <View style={styles.roleRow}>
             <Pressable
               testID="role-parent-button"
@@ -70,22 +70,22 @@ export default function Register() {
               <Text style={[styles.roleText, role === "child" && styles.roleTextActive]}>🧒 Enfant</Text>
             </Pressable>
           </View>
-
+ 
           <View style={styles.card}>
             <Text style={styles.label}>Prénom</Text>
             <TextInput testID="register-name-input" value={name} onChangeText={setName}
               placeholder="Léa" placeholderTextColor={T.onSurfaceMuted} style={styles.input} />
-
+ 
             <Text style={styles.label}>Email</Text>
             <TextInput testID="register-email-input" value={email} onChangeText={setEmail}
               placeholder="ton.email@exemple.fr" placeholderTextColor={T.onSurfaceMuted}
               autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-
+ 
             <Text style={styles.label}>Mot de passe</Text>
             <TextInput testID="register-password-input" value={password} onChangeText={setPassword}
               placeholder="6 caractères min." placeholderTextColor={T.onSurfaceMuted}
               secureTextEntry style={styles.input} />
-
+ 
             <Text style={styles.label}>Choisis ton avatar</Text>
             <View style={styles.avatarRow}>
               {avatars.map((a) => (
@@ -95,7 +95,7 @@ export default function Register() {
                 </Pressable>
               ))}
             </View>
-
+ 
             {role === "parent" ? (
               <>
                 <Text style={styles.label}>Type de compte parent</Text>
@@ -106,10 +106,10 @@ export default function Register() {
                   </Pressable>
                   <Pressable testID="parent-mode-join" onPress={() => setParentMode("join")}
                     style={[styles.modeChip, parentMode === "join" && styles.modeChipActive]}>
-                    <Text style={[styles.modeText, parentMode === "join" && styles.modeTextActive]}>🤝 Rejoindre</Text>
+                    <Text style={[styles.modeText, parentMode === "join" && styles.modeTextActive]}>🤝 Rejoindre une famille</Text>
                   </Pressable>
                 </View>
-
+ 
                 {parentMode === "new" ? (
                   <>
                     <Text style={styles.label}>Nom de la famille</Text>
@@ -125,7 +125,7 @@ export default function Register() {
                     <Text style={styles.helper}>Vous aurez les mêmes droits que le parent qui a créé la famille.</Text>
                   </>
                 )}
-
+ 
                 <Text style={styles.label}>Code PIN parent (4 chiffres)</Text>
                 <TextInput testID="register-pin-input" value={pin} onChangeText={setPin}
                   placeholder="1234" placeholderTextColor={T.onSurfaceMuted}
@@ -139,13 +139,13 @@ export default function Register() {
                   autoCapitalize="none" style={styles.input} />
               </>
             )}
-
+ 
             {err ? <Text style={styles.err} testID="register-error">{err}</Text> : null}
             <Pressable testID="register-submit-button" onPress={onSubmit} disabled={busy}
               style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}>
               <Text style={styles.btnText}>{busy ? "Création..." : "C'est parti !"}</Text>
             </Pressable>
-
+ 
             <Link href="/(auth)/login" asChild>
               <Pressable testID="go-login-button" style={styles.linkBtn}>
                 <Text style={styles.linkText}>{"J'ai déjà un compte"}</Text>
@@ -157,7 +157,7 @@ export default function Register() {
     </SafeAreaView>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.surface },
   scroll: { padding: S.lg, gap: S.md },
