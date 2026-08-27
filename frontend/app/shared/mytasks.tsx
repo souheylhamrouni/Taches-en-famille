@@ -35,8 +35,9 @@ export default function MyTasks() {
   const complete = async (t: any) => {
     setBusyId(t.id);
     try {
-      const form = new FormData();
+      let r: any;
       if (t.photo_required) {
+        const form = new FormData();
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         const res: any = perm.status === "granted"
           ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6 })
@@ -47,8 +48,10 @@ export default function MyTasks() {
         const type = asset.mimeType || "image/jpeg";
         if (Platform.OS === "web") { const blob = await (await fetch(asset.uri)).blob(); form.append("photo", blob, name); }
         else form.append("photo", { uri: asset.uri, name, type } as any);
+        r = await api.upload(`/tasks/${t.id}/complete`, form);
+      } else {
+        r = await api.post(`/tasks/${t.id}/complete`);
       }
-      const r = await api.upload(`/tasks/${t.id}/complete`, form);
       celebrate();
       setFlash(r?.status === "approved" ? `🎉 +${t.points_worth} points` : "✅ Preuve envoyée, en attente de validation");
       if (r?.new_badges?.length) setNewBadges(r.new_badges);

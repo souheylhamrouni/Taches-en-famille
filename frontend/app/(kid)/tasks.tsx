@@ -42,17 +42,18 @@ export default function KidTasks() {
   const complete = async (t: any) => {
     setBusyId(t.id);
     try {
-      const form = new FormData();
+      let res: any;
       if (t.photo_required) {
+        const form = new FormData();
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        let res: any;
+        let pick: any;
         if (perm.status === "granted") {
-          res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6 });
+          pick = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6 });
         } else {
-          res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6 });
+          pick = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6 });
         }
-        if (res.canceled) { setBusyId(null); return; }
-        const asset = res.assets[0];
+        if (pick.canceled) { setBusyId(null); return; }
+        const asset = pick.assets[0];
         const name = asset.fileName || `proof_${Date.now()}.jpg`;
         const type = asset.mimeType || "image/jpeg";
         if (Platform.OS === "web") {
@@ -61,8 +62,10 @@ export default function KidTasks() {
         } else {
           form.append("photo", { uri: asset.uri, name, type } as any);
         }
+        res = await api.upload(`/tasks/${t.id}/complete`, form);
+      } else {
+        res = await api.post(`/tasks/${t.id}/complete`);
       }
-      const res = await api.upload(`/tasks/${t.id}/complete`, form);
       celebrate();
       const status = res?.status;
       setFlash(status === "approved"
