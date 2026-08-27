@@ -20,6 +20,7 @@ export default function Challenges() {
   const [openAdd, setOpenAdd] = useState(false);
   const [pinRequired, setPinRequired] = useState(false);
   const [pendingAction, setPendingAction] = useState<"create" | "delete" | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [metric, setMetric] = useState<"tasks" | "points">("tasks");
   const [target, setTarget] = useState("15");
@@ -37,15 +38,26 @@ export default function Challenges() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const openCreate = async () => {
+    setEditingId(null); setTitle(""); setTarget("15"); setBonus("50"); setMetric("tasks"); setErr(null);
+    if (!(await hasPinToken())) { setPendingAction("create"); setPinRequired(true); }
+    else setOpenAdd(true);
+  };
+
+  const openEdit = async () => {
+    if (!challenge) return;
+    setEditingId(challenge.id); setTitle(challenge.title); setTarget(String(challenge.target));
+    setBonus(String(challenge.bonus_points)); setMetric(challenge.metric); setErr(null);
     if (!(await hasPinToken())) { setPendingAction("create"); setPinRequired(true); }
     else setOpenAdd(true);
   };
 
   const submit = async () => {
     setErr(null);
+    const payload = { title, metric, target: parseInt(target) || 15, bonus_points: parseInt(bonus) || 50 };
     try {
-      await api.post("/challenges", { title, metric, target: parseInt(target) || 15, bonus_points: parseInt(bonus) || 50 });
-      setTitle(""); setTarget("15"); setBonus("50"); setMetric("tasks"); setOpenAdd(false); await load();
+      if (editingId) await api.patch(`/challenges/${editingId}`, payload);
+      else await api.post("/challenges", payload);
+      setTitle(""); setTarget("15"); setBonus("50"); setMetric("tasks"); setEditingId(null); setOpenAdd(false); await load();
     } catch (e: any) {
       if (String(e.message).includes("PIN")) { await storage.del("parent_pin_token"); setOpenAdd(false); setPendingAction("create"); setPinRequired(true); }
       else setErr(e.message);
@@ -102,9 +114,14 @@ export default function Challenges() {
                 {challenge.description ? <Text style={s.cDesc}>{challenge.description}</Text> : null}
               </View>
               {isParent && (
-                <Pressable testID="delete-challenge" onPress={remove}>
-                  <Ionicons name="trash-outline" size={20} color={T.onSurfaceMuted} />
-                </Pressable>
+                <View style={{ flexDirection: "row", gap: S.sm }}>
+                  <Pressable testID="edit-challenge" onPress={openEdit}>
+                    <Ionicons name="create-outline" size={20} color={T.brand} />
+                  </Pressable>
+                  <Pressable testID="delete-challenge" onPress={remove}>
+                    <Ionicons name="trash-outline" size={20} color={T.onSurfaceMuted} />
+                  </Pressable>
+                </View>
               )}
             </View>
 
@@ -152,7 +169,7 @@ export default function Challenges() {
       <Modal visible={openAdd} transparent animationType="slide" onRequestClose={() => setOpenAdd(false)}>
         <View style={s.mBackdrop}>
           <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
-            <Text style={s.mTitle}>Nouveau défi</Text>
+            <Text style={s.mTitle}>{editingId ? "Modifier le défi" : "Nouveau défi"}</Text>
             <TextInput testID="challenge-title-input" value={title} onChangeText={setTitle}
               placeholder="Ex: Semaine au top" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
             <Text style={s.label}>Objectif basé sur</Text>
@@ -177,7 +194,7 @@ export default function Challenges() {
             {err ? <Text style={{ color: T.red, fontWeight: "700", marginTop: S.sm }}>{err}</Text> : null}
             <View style={{ flexDirection: "row", gap: S.sm, marginTop: S.lg }}>
               <Pressable style={s.cancelBtn} onPress={() => setOpenAdd(false)}><Text style={{ fontWeight: "800", color: T.onSurfaceMuted }}>Annuler</Text></Pressable>
-              <Pressable testID="save-challenge-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>Lancer le défi</Text></Pressable>
+              <Pressable testID="save-challenge-button" style={s.saveBtn} onPress={submit}><Text style={{ fontWeight: "900", color: T.white }}>{editingId ? "Enregistrer" : "Lancer le défi"}</Text></Pressable>
             </View>
           </View>
         </View>

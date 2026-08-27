@@ -1,0 +1,31 @@
+{
+  "summary": "Verified all 3 requested features + regressions (backend + frontend). Backend: 13/13 pytest passed (test_iteration13_features.py). Photo endpoint /api/photos/{path}?token=JWT returns 200 image/png, 401 without token, 404 for missing paths, and path-traversal rejected. Task PATCH, Challenge PATCH (with PIN token), /auth/profile, /auth/password (wrong→401, correct→200), PATCH /family (parent→200, kid→403), /auth/forgot-password (always 200), /auth/reset-password (invalid code→400) all pass. Frontend E2E on mobile viewport 390x844: (1) FORGOT: go-forgot-button opens Step 1 forgot-email-input+forgot-submit; after submit, Step 2 reveals forgot-code-input+forgot-newpw-input and shows forgot-msg; invalid code 000000 returns forgot-error='Code incorrect'. (2) ACCOUNT: /shared/account renders name/family/password cards; wrong current pw shows account-error='Mot de passe actuel incorrect'; correct save-name-button flashes '✅ Nom mis à jour'. (3) TASK EDIT: tasks-admin shows edit-task-{id} pencils; click prompts PIN keypad (pin-key-1..4); modal 'Modifier la tâche' opens PREFILLED (verified title='Ranger sa chambre'); modified title→TEST_UI_TaskEdit and points→88; save-task-button PATCH → list row updated with '+88 pts'; reverted successfully. (4) CHALLENGE EDIT (the new feature): edit-challenge pencil visible for parent only; opens modal with title 'Modifier le défi' PREFILLED (target=42, bonus=77 after previous test run); save-challenge-button PATCH persists (challenge-progress='8 / 42 tâches', 19% ring, +77 pts bonus displayed). Kid (Léa) session confirmed: edit-challenge & delete-challenge buttons ARE HIDDEN. (5) PHOTO DISPLAY (feature #1): uploaded a proof via backend as Léa on task 'Ranger sa chambre'; parent /shared/validate shows validation-{id} card with testID='photo-{completion_id}'; the inner <img> src equals BACKEND_URL/api/photos/{path}?token=JWT; fetch() from the page returned status=200 content-type=image/png (naturalWidth=1 because test image is a 1x1 transparent PNG — that's fine, pipeline is proven). Everything works. NOTE: On expo-image web, [data-testid=photo-*] is the OUTER <div>; the actual <img> is a child (this is expo-image's implementation). Testing agents should target the inner img.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13_features.py",
+    "/app/test_reports/pytest/pytest_iteration13.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "challenges.tsx openEdit shares 'pendingAction=create' with openCreate — both routes end up opening the add modal after PIN succeeds; safe but slightly confusing naming (consider 'edit' as its own action name).",
+    "tasks-admin.tsx openEdit sets editingId and prefills fields BEFORE PIN check; if user cancels PIN the editingId remains set, so a subsequent openCreate call that runs resetForm() correctly clears it — flow is correct.",
+    "validate.tsx correctly uses expo-image with contentFit='cover' + ?token= URL (avoids exposing token in headers for web <img>); backend correctly accepts both Authorization header AND ?token=; photo endpoint enforces family_id scoping (owner query uses fam_id from JWT). Good.",
+    "server.py forgot-password does not reveal whether email exists (always returns ok:true) — good; reset-password returns 400 on invalid code — good.",
+    "server.py PATCH /auth/profile & /family & /auth/password: no length/strip validation on payloads — main agent could add min length on new_password (currently accepts any non-empty via body.new_password). Not blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration13_features.py (new)"
+  ],
+  "success_rate": { "backend": "100% (13/13)", "frontend": "100% of covered flows (photo, task-edit, challenge-edit, account, forgot)" },
+  "seed_data_creation": "Test residue: (a) demo challenge was edited via UI to title='TEST_UI_ChallengeEdit' target=42 bonus=77 — persisted. (b) One pending completion left on 'Ranger sa chambre' (Léa uploaded proof) — main agent or next tester can approve/reject or ignore (it reseeds on backend restart).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "expo-image on web renders as <div data-testid='photo-...'> wrapping an <img>; use el.querySelector('img').currentSrc to check the loaded URL. The parent PIN endpoint is POST /api/auth/pin/verify and the header is X-Parent-Pin-Token (NOT X-Parent-Pin or /auth/parent-pin as one might guess). GET /api/auth/me returns the user object directly (NOT wrapped in {user:...}). To run these tests: `pytest /app/backend/tests/test_iteration13_features.py -o addopts=` (disable pytest.ini xdist parallelism because tests mutate shared demo state — sequential run passes 13/13).",
+  "rca_of_issue": "N/A — all 3 requested features work end-to-end. Only cosmetic UX residue: the demo family's active challenge was overwritten by TEST_UI_ChallengeEdit (target=42, bonus=77). If the demo needs its original seed restored, main agent can delete-then-recreate the challenge (or trigger the auto-seed by removing it)."
+}
