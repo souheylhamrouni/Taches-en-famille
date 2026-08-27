@@ -40,3 +40,11 @@ Cross-platform mobile app (React Native / Expo) to manage, track and gamify fami
 
 ## Next Tasks
 - Awaiting user direction on which enhancement to build next.
+
+## Iteration 14 — Points floor, Pause system, Weekly visibility (DONE, tested)
+- Points never go below 0: apply_daily_penalties clamps deduction to available points; shop claim already guarded.
+- Pause system: parents pause members over a date range (Settings → "Pauses & congés" → /shared/pauses). During pause, tasks are hidden (GET /api/tasks returns paused:true, empty tasks) and no penalties/reminders apply. Kid tasks screen shows "En pause" 🏖️ banner.
+- Endpoints: GET/POST/DELETE /api/pauses (POST/DELETE require parent PIN). Collection db.pauses.
+- New files: app/shared/pauses.tsx, src/components/DateField.tsx.
+- Weekly tasks hidden once approved/pending until next week (list_tasks).
+- Verified: backend 9/9 pytest (iteration 14) + frontend create/delete via PIN modal (iteration 15).

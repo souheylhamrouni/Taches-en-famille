@@ -1,0 +1,27 @@
+{
+  "summary": "RE-VERIFIED Iteration 14 fix on /app/frontend/app/shared/pauses.tsx — ParentPinModal is now correctly wired for both create and delete flows. End-to-end mobile viewport (390x844) test: papa@demo.fr / demo1234 logged in → Réglages → 'Pauses & congés' (testID=link-pauses) opens /shared/pauses. Selected Léa, filled Du=2026-08-27 / Au=2026-08-28, tapped 'Mettre en pause' (testID=pause-save) with no cached parent_pin_token → ParentPinModal (testID=parent-pin-modal) appeared → entered PIN 1234 → flash '✅ Pause enregistrée' → new pause row visible under 'Pauses actives / à venir' (Léa · jeu. 27 août 2026 → ven. 28 août 2026). Then cleared parent_pin_token from localStorage and tapped testID=pause-del-<id> → ParentPinModal re-opened → PIN 1234 → flash '🗑️ Pause supprimée' and the row disappeared. Cleanup verified: 0 remaining pause-del testids in the DOM. requirePin() + pending-action retry pattern behaves identically to tasks-admin.tsx. No regressions observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_14.json (previous)",
+    "/app/backend/tests/test_iteration14_pauses.py (backend still green, not re-run this iteration)"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "pauses.tsx now mirrors tasks-admin.tsx exactly: hasPinToken() pre-check + requirePin(pendingFn) that stashes the action and re-invokes it on ParentPinModal.onSuccess. Also handles post-401 fallback (storage.del + requirePin) inside doSave/doRemove — good defensive path for expired tokens.",
+    "Minor (non-blocking): DateField web variant is a plain TextInput ('AAAA-MM-JJ'); if a parent leaves it empty or malformed they only see the save-time flash '❌ Choisis les dates de début et de fin'. Fine for MVP.",
+    "The PIN modal is rendered inside the SafeAreaView after the ScrollView which is correct — no scroll interception observed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not re-tested (100% previously)", "frontend": "100% — create + delete via PIN modal both succeed"},
+  "seed_data_creation": "One TEST pause (Léa · 2026-08-27→2026-08-28) was created during the test and deleted at the end. Final /pauses list is clean (0 rows).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 14 pauses feature is complete. Frontend PIN gating pattern for parent-only screens: hasPinToken() from '@/src/components/ParentPinModal' → if false, stash action in state and setPinRequired(true); ParentPinModal onSuccess replays the pending fn. On 401 with body containing 'PIN', storage.del('parent_pin_token') and re-prompt. Test IDs on Pauses screen: link-pauses, pause-member-<id>, pause-start, pause-end, pause-save, pause-<id>, pause-del-<id>, pauses-flash, parent-pin-modal, pin-key-<0-9>, pin-key-del, parent-pin-cancel-button. Note: DateField on web is a text input — fill with 'YYYY-MM-DD' directly.",
+  "rca_of_issue": "Previous root cause (pauses.tsx not mounting ParentPinModal) is fully resolved. Verified by reproducing the pre-fix conditions (localStorage parent_pin_token removed) and confirming the modal now opens for both create and delete, then completes the pending action after PIN entry."
+}

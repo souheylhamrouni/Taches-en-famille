@@ -19,10 +19,11 @@ export default function MyTasks() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<any[]>([]);
+  const [paused, setPaused] = useState(false);
   const celebrate = useCelebration();
 
   const load = useCallback(async () => {
-    try { const t = await api.get("/tasks"); setTasks(t.tasks || []); } catch {}
+    try { const t = await api.get("/tasks"); setTasks(t.tasks || []); setPaused(!!t.paused); } catch {}
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); await refresh(); setRefreshing(false); };
@@ -71,6 +72,16 @@ export default function MyTasks() {
       </View>
 
       {flash ? <View style={s.flash} testID="mytasks-flash"><Text style={s.flashText}>{flash}</Text></View> : null}
+
+      {paused && (
+        <View style={s.pausedBanner} testID="paused-banner">
+          <Text style={{ fontSize: 22 }}>🏖️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pausedTitle}>En pause</Text>
+            <Text style={s.pausedSub}>Aucune tâche ni pénalité pendant la pause.</Text>
+          </View>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: S.xxxl, gap: S.sm }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.brand} />}>
@@ -129,4 +140,7 @@ const s = StyleSheet.create({
   doneRow: { flexDirection: "row", alignItems: "center", gap: S.sm, backgroundColor: T.white, padding: S.md, borderRadius: R.md, borderWidth: 2, borderColor: T.border },
   doneText: { flex: 1, fontWeight: "700", color: T.onSurfaceMuted, textDecorationLine: "line-through" },
   doneStatus: { fontSize: 16 },
+  pausedBanner: { flexDirection: "row", alignItems: "center", gap: S.md, marginHorizontal: S.lg, marginTop: S.sm, padding: S.md, backgroundColor: "#E3F2FD", borderRadius: R.lg, borderWidth: 2, borderColor: "#64B5F6" },
+  pausedTitle: { fontWeight: "900", color: T.onSurface, fontSize: 15 },
+  pausedSub: { color: T.onSurfaceMuted, fontSize: 12, marginTop: 2 },
 });

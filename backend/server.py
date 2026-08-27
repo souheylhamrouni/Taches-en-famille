@@ -1,4 +1,4 @@
-"""TâcheHéros - Family Chore Gamification API."""
+"""TribuQuest - Family Chore Gamification API."""
 import os
 import uuid
 import base64
@@ -48,7 +48,7 @@ else:
     db = client[DB_NAME]
  
  
-app = FastAPI(title="TâcheHéros API")
+app = FastAPI(title="TribuQuest API")
 api = APIRouter(prefix="/api")
 passwords = PasswordHash.recommended()
 DUMMY = passwords.hash("not-a-real-password-not-a-real-password")
@@ -230,6 +230,12 @@ class ChallengeCreate(BaseModel):
     metric: Literal["tasks", "points"] = "tasks"
     target: int = Field(default=20, ge=1, le=1000)
     bonus_points: int = Field(default=50, ge=0, le=1000)
+
+class PauseCreate(BaseModel):
+    user_ids: List[str]
+    start_date: str  # YYYY-MM-DD
+    end_date: str    # YYYY-MM-DD
+    reason: Optional[str] = ""
  
 # -------- Auth --------
 @api.post("/auth/register")
@@ -380,16 +386,83 @@ def _task_out(t: dict) -> dict:
 async def list_tasks(user=Depends(current_user)):
     tasks = await db.tasks.find({"family_id": user["family_id"], "active": {"$ne": False}}, {"_id": 0}).to_list(500)
     today_key = date.today().isoformat()
-    # Batch-load today's completions for this user in one query (avoid N+1).
+    week_key = week_start_key()
+    # Today's completions (for daily/once tasks).
     comps = await db.completions.find(
         {"family_id": user["family_id"], "user_id": user["id"], "day": today_key}, {"_id": 0}
     ).to_list(500)
     by_task = {c["task_id"]: c for c in comps}
+    # This-week completions (for weekly tasks: hide until next week once done/pending).
+    week_comps = await db.completions.find(
+        {"family_id": user["family_id"], "user_id": user["id"], "day": {"$gte": week_key},
+         "status": {"$in": ["approved", "pending"]}}, {"_id": 0}
+    ).to_list(500)
+    week_by_task = {}
+    for c in week_comps:
+        week_by_task.setdefault(c["task_id"], c)
+    # Is this user paused today?
+    paused = await _is_paused(user["family_id"], user["id"], today_key)
+    if paused:
+        # Masquer les tâches pendant la pause (vacances/congés).
+        return {"tasks": [], "paused": True}
     for t in tasks:
-        c = by_task.get(t["id"])
+        if t.get("frequency") == "weekly":
+            c = week_by_task.get(t["id"]) or by_task.get(t["id"])
+        else:
+            c = by_task.get(t["id"])
         t["today_status"] = c["status"] if c else "todo"
         t["today_completion_id"] = c["id"] if c else None
-    return {"tasks": tasks}
+    return {"tasks": tasks, "paused": paused}
+
+
+async def _is_paused(family_id: str, user_id: str, day_key: str) -> bool:
+    p = await db.pauses.find_one({
+        "family_id": family_id, "user_ids": user_id,
+        "start_date": {"$lte": day_key}, "end_date": {"$gte": day_key},
+    })
+    return bool(p)
+
+
+@api.get("/pauses")
+async def list_pauses(user=Depends(current_user)):
+    """Liste toutes les pauses de la famille (parents pour gérer, enfants pour info)."""
+    pauses = await db.pauses.find({"family_id": user["family_id"]}, {"_id": 0}).sort("start_date", 1).to_list(200)
+    return {"pauses": pauses}
+
+
+@api.post("/pauses")
+async def create_pause(body: PauseCreate, user=Depends(parent_pin)):
+    if not body.user_ids:
+        raise HTTPException(400, "Sélectionne au moins un membre")
+    if body.end_date < body.start_date:
+        raise HTTPException(400, "La date de fin doit être après la date de début")
+    # Ne garder que les membres de la famille du parent.
+    members = await db.users.find(
+        {"family_id": user["family_id"], "id": {"$in": body.user_ids}}, {"_id": 0, "id": 1, "name": 1}
+    ).to_list(100)
+    valid_ids = [m["id"] for m in members]
+    if not valid_ids:
+        raise HTTPException(400, "Membres invalides")
+    p = {
+        "id": new_id(),
+        "family_id": user["family_id"],
+        "user_ids": valid_ids,
+        "member_names": [m["name"] for m in members],
+        "start_date": body.start_date,
+        "end_date": body.end_date,
+        "reason": body.reason or "",
+        "created_by": user["id"],
+        "created_at": now(),
+    }
+    await db.pauses.insert_one(p)
+    p.pop("_id", None)
+    return p
+
+
+@api.delete("/pauses/{pid}")
+async def delete_pause(pid: str, user=Depends(parent_pin)):
+    await db.pauses.delete_one({"id": pid, "family_id": user["family_id"]})
+    return {"ok": True}
  
  
 @api.post("/tasks")
@@ -918,6 +991,10 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
         existing_pen = await db.penalties.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
         penalized = {(pn["task_id"], pn["user_id"]) for pn in existing_pen}
         for u in users:
+            # Membre en pause (vacances/congés) → aucune pénalité.
+            if await _is_paused(fam["id"], u["id"], today_key):
+                continue
+            current_points = u.get("points", 0)
             for t in tasks:
                 if t["assigned_to"] and u["id"] not in t["assigned_to"]:
                     continue
@@ -926,18 +1003,20 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
                     continue
                 if (t["id"], u["id"]) in penalized:
                     continue  # already penalized today
-                # apply penalty
+                # apply penalty — les points ne descendent jamais sous 0.
                 pts = t.get("penalty_points", 50)
-                await db.users.update_one({"id": u["id"]}, {"$inc": {"points": -pts}, "$set": {"streak": 0, "last_streak_date": None}})
+                deduct = min(pts, max(0, current_points))
+                current_points -= deduct
+                await db.users.update_one({"id": u["id"]}, {"$inc": {"points": -deduct}, "$set": {"streak": 0, "last_streak_date": None}})
                 await db.penalties.insert_one({
                     "id": new_id(), "family_id": fam["id"], "user_id": u["id"], "user_name": u["name"],
-                    "task_id": t["id"], "task_title": t["title"], "points_deducted": pts,
+                    "task_id": t["id"], "task_title": t["title"], "points_deducted": deduct,
                     "day": today_key, "timestamp": now(),
                 })
                 penalized.add((t["id"], u["id"]))
                 await send_push([u["id"]], {
                     "title": "Pénalité appliquée ⚠️",
-                    "message": f"-{pts} pts pour « {t['title'] }» non fait",
+                    "message": f"-{deduct} pts pour « {t['title'] }» non fait",
                 })
  
  
@@ -952,6 +1031,8 @@ async def send_evening_reminders():
         comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
         submitted = {(c["task_id"], c["user_id"]) for c in comps}
         for u in users:
+            if await _is_paused(fam["id"], u["id"], today_key):
+                continue
             missing = []
             for t in tasks:
                 if t["assigned_to"] and u["id"] not in t["assigned_to"]:
@@ -1074,7 +1155,7 @@ async def _seed_demo():
  
 @api.get("/")
 async def root():
-    return {"app": "TâcheHéros", "ok": True}
+    return {"app": "TribuQuest", "ok": True}
  
  
 # -------- Email (Emergent managed Resend) --------
@@ -1082,7 +1163,7 @@ import secrets as _secrets
 from html import escape as _esc
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
-EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "TâcheHéros")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "TribuQuest")
  
  
 async def _send_email(to: str, subject: str, html: str):
@@ -1131,15 +1212,15 @@ async def forgot_password(body: ForgotBody):
         }})
         html = (f'<table role="presentation" width="100%"><tr><td style="padding:24px;'
                 f'font-family:Arial,sans-serif;color:#1A1A1A">'
-                f'<h2 style="color:#58CC02">TâcheHéros</h2>'
+                f'<h2 style="color:#58CC02">TribuQuest</h2>'
                 f'<p>Bonjour {_esc(user["name"])},</p>'
                 f'<p>Votre code de réinitialisation du mot de passe est :</p>'
                 f'<p style="font-size:30px;font-weight:bold;letter-spacing:4px">{code}</p>'
                 f'<p>Il expire dans 15 minutes. Saisissez-le dans l\'application pour choisir un nouveau mot de passe.</p>'
-                f'<p style="font-size:12px;color:#888">Envoyé par TâcheHéros. Nous ne vous demanderons jamais votre mot de passe par email.</p>'
+                f'<p style="font-size:12px;color:#888">Envoyé par TribuQuest. Nous ne vous demanderons jamais votre mot de passe par email.</p>'
                 f'</td></tr></table>')
         try:
-            await _send_email(email, "Code de réinitialisation TâcheHéros", html)
+            await _send_email(email, "Code de réinitialisation TribuQuest", html)
         except Exception:
             pass
     return {"ok": True}

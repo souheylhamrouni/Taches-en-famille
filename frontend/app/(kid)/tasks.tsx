@@ -26,10 +26,11 @@ export default function KidTasks() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<any[]>([]);
+  const [paused, setPaused] = useState(false);
   const celebrate = useCelebration();
 
   const load = useCallback(async () => {
-    try { const t = await api.get("/tasks"); setTasks(t.tasks || []); } catch {}
+    try { const t = await api.get("/tasks"); setTasks(t.tasks || []); setPaused(!!t.paused); } catch {}
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -95,6 +96,16 @@ export default function KidTasks() {
       </ScrollView>
 
       {flash ? <View style={s.flash} testID="flash-message"><Text style={s.flashText}>{flash}</Text></View> : null}
+
+      {paused && (
+        <View style={s.pausedBanner} testID="paused-banner">
+          <Text style={{ fontSize: 22 }}>🏖️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pausedTitle}>En pause</Text>
+            <Text style={s.pausedSub}>{"Profite de ta pause ! Aucune tâche ni pénalité aujourd'hui."}</Text>
+          </View>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={{ padding: S.lg, paddingBottom: S.xxxl, gap: S.sm }}
@@ -165,4 +176,7 @@ const s = StyleSheet.create({
   pending: { marginTop: S.md, color: T.orange, fontWeight: "800" },
   rejected: { marginTop: S.md, color: T.red, fontWeight: "800" },
   approved: { marginTop: S.md, color: T.brand, fontWeight: "800" },
+  pausedBanner: { flexDirection: "row", alignItems: "center", gap: S.md, margin: S.lg, marginBottom: 0, padding: S.md, backgroundColor: "#E3F2FD", borderRadius: R.lg, borderWidth: 2, borderColor: "#64B5F6" },
+  pausedTitle: { fontWeight: "900", color: T.onSurface, fontSize: 15 },
+  pausedSub: { color: T.onSurfaceMuted, fontSize: 12, marginTop: 2 },
 });

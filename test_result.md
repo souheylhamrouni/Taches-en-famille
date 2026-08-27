@@ -101,3 +101,18 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Iteration 14 — Points floor, Pause system, Weekly task visibility
+Backend (server.py):
+- apply_daily_penalties: points now clamped at 0 (deduct = min(penalty, max(0, current))); paused users skipped.
+- send_evening_reminders: paused users skipped.
+- list_tasks: returns {tasks, paused}; when paused returns empty tasks (masked). Weekly tasks hidden once approved/pending until next week (done previously).
+- New endpoints: GET /api/pauses, POST /api/pauses (parent_pin), DELETE /api/pauses/{id} (parent_pin). Model PauseCreate {user_ids, start_date, end_date, reason}. Stored in db.pauses.
+
+Frontend:
+- New screen app/shared/pauses.tsx (parent) — select members + date range, list/delete pauses. Linked from (parent)/settings.tsx as "Pauses & congés".
+- New component src/components/DateField.tsx (date-only picker).
+- Paused banner ("En pause" 🏖️) added to (kid)/tasks.tsx and shared/mytasks.tsx.
+
+Curl-verified: pause create/list/delete OK; paused=true masks tasks; delete restores 6 tasks. Points floor verified via code (not curl).
+
+Demo creds: papa@demo.fr / demo1234, PIN 1234.

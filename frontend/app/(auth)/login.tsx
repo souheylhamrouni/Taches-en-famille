@@ -32,7 +32,7 @@ export default function Login() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <Text style={styles.emoji}>🦸‍♂️</Text>
-            <Text style={styles.title} testID="app-title">Tâches en Famille</Text>
+            <Text style={styles.title} testID="app-title">TribuQuest</Text>
             <Text style={styles.subtitle}>Transforme tes corvées en aventures !</Text>
           </View>
  

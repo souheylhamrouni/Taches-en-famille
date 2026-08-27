@@ -1,0 +1,47 @@
+{
+  "summary": "Backend 9/9 pytest passing (test_iteration14_pauses.py): Pause CRUD (create requires PIN, end<start rejected, empty user_ids rejected, foreign member rejected, create→GET→DELETE→verify gone), GET /tasks masking (paused=true & empty tasks for paused user; other users unaffected; past-only pause does not mask today), and — most importantly — apply_daily_penalties floors points at 0 (Hugo forced to 5 pts, total deducted == 5, final points == 0, verified via DB and /api/family/leaderboard) AND paused user Léa gets zero penalties inserted for today. Frontend: (a) Parent Settings shows 'Pauses & congés' row (testID=link-pauses) that navigates to /shared/pauses; screen renders with member chips (Papa, Léa, Hugo, Emma), date fields, and 'Mettre en pause' CTA. (b) Kid tasks screen correctly shows the '🏖️ En pause — Profite de ta pause ! Aucune tâche ni pénalité aujourd\\u2019hui.' banner (testID=paused-banner) and 0 task cards across all filters (todo/pending/approved/rejected) when the kid is paused for today — verified by seeding a pause via API, then logging in as Léa. HOWEVER, one CRITICAL frontend integration bug found: app/shared/pauses.tsx does NOT mount ParentPinModal, so the parent has NO way to enter their PIN from this screen. Both save and delete calls immediately return the flash '❌ PIN parent requis' and there is no keypad prompt, making the entire Pauses screen unusable from the UI (backend refuses without X-Parent-Pin-Token). tasks-admin.tsx, rewards-admin.tsx, and challenges.tsx all import ParentPinModal + hasPinToken and gate their actions correctly — pauses.tsx must follow the same pattern.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/shared/pauses.tsx",
+        "issue": "No ParentPinModal wired in. save() and remove() call api.post/del('/pauses...') directly; when no cached PIN token exists the backend returns 401 and the screen only shows the flash '❌ PIN parent requis' without ever opening a PIN keypad. Users cannot create or delete pauses from the UI. Reproduce: login papa@demo.fr → Settings → Pauses & congés → select Léa + today/today → Mettre en pause → flash '❌ PIN parent requis'. Fix pattern: mirror tasks-admin.tsx — import ParentPinModal + hasPinToken; on save/remove, if (!(await hasPinToken())) setPinRequired(true) and stash the pending action; ParentPinModal onSuccess should re-run it.",
+        "testID": "pause-save / pause-del-{id}",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Parent → create/delete pause",
+        "issue": "Pauses screen is a dead-end for parents lacking a fresh parent_pin_token (default state after login). The rest of Iteration 14 backend logic is fine; only the PIN gating on the client is missing.",
+        "affected_testIDs": ["pause-save", "pause-del-{id}"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration14_pauses.py",
+    "/app/test_reports/pytest/pytest_iteration14.xml"
+  ],
+  "action_items": [
+    "In /app/frontend/app/shared/pauses.tsx: import ParentPinModal + hasPinToken from '@/src/components/ParentPinModal'; add state `pinRequired` and `pendingAction` ('save' | {type:'del', id:string}); in save() and remove(), first check `if (!(await hasPinToken())) { setPendingAction(...); setPinRequired(true); return; }` before calling api.post/del; render <ParentPinModal visible={pinRequired} onCancel={()=>{setPinRequired(false); setPendingAction(null);}} onSuccess={()=>{ setPinRequired(false); const a=pendingAction; setPendingAction(null); if(a==='save') save(); else if(a) remove(a.id); }} /> at the bottom of the SafeAreaView.",
+    "(Optional polish) Show a slightly more actionable flash if the backend still returns 401 (e.g. after PIN token expiry): call clearPin() and re-open the modal automatically."
+  ],
+  "critical_code_review_comments": [
+    "server.py apply_daily_penalties: floor logic `deduct = min(pts, max(0, current_points)); current_points -= deduct` is correct — verified with points=5 and multiple daily tasks totaling >5; final points=0 and penalty row stores the effective deduction (5) not the nominal one (30/50/10). Good.",
+    "server.py _is_paused uses inclusive [start_date, end_date] with YYYY-MM-DD string compare — correct for today between start/end. Delete endpoint does not require an existence check (returns ok even for unknown id) — harmless but could return 404 for clarity.",
+    "pauses.tsx active/past split uses `p.end_date >= todayKey()` (string compare) — correct for YYYY-MM-DD.",
+    "DateField web variant is a plain TextInput expecting 'AAAA-MM-JJ'; no live validation feedback — a malformed date silently keeps `value=null` and only shows via the save-time flash. Acceptable for MVP; consider a visible hint when parseKey fails.",
+    "pauses.tsx save() displays the raw backend error via `e.message` — the CRITICAL bug above is caused by this exact fall-through: 401 body 'PIN parent requis' flows to the flash without opening the modal."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration14_pauses.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "50% — Settings entry + kid banner OK; parent create/delete blocked by missing PIN modal"},
+  "seed_data_creation": "All TEST_ pauses cleaned up. Hugo's points were briefly set to 5 during the penalty test and restored to the original value in the finally block (verified via a leaderboard readback showing 0 during the run; test then restored).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints: POST /api/auth/pin/verify returns {pin_token} (not {token}); header is X-Parent-Pin-Token. Leaderboard is at /api/family/leaderboard (not /api/leaderboard). Pause docs use YYYY-MM-DD keys; _is_paused matches inclusive [start_date, end_date] via string $lte/$gte. To seed a pause from tests, use pymongo directly OR the flow: POST /auth/pin/verify → POST /pauses with X-Parent-Pin-Token. To exercise the points-floor path, temporarily set a child's points to a small value via db.users.update_one and delete today's penalties+completions before POST /dev/run-penalties (idempotent per (day,task,user)).",
+  "rca_of_issue": "app/shared/pauses.tsx was implemented without the PIN-gating pattern used by the other parent-only screens. Backend correctly enforces parent+PIN on POST/DELETE /api/pauses. Since fresh logins have no cached parent_pin_token, every save/delete attempt returns 401 with body 'PIN parent requis' and the client just surfaces it as a flash. Fix = wire ParentPinModal + hasPinToken exactly like tasks-admin.tsx (~15 LoC)."
+}

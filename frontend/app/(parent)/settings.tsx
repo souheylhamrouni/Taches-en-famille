@@ -42,6 +42,12 @@ export default function Settings() {
           <Text style={s.rowLabel}>Défi familial</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
+        <Pressable testID="link-pauses" onPress={() => router.push("/shared/pauses")}
+          style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
+          <View style={s.iconWrap}><Ionicons name="pause-circle" size={22} color={T.orange} /></View>
+          <Text style={s.rowLabel}>Pauses & congés</Text>
+          <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
+        </Pressable>
         <Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="calendar" size={22} color={T.orange} /></View>
