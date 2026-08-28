@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tribuquest.app"
+      "bundleIdentifier": "com.tribuquest.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +22,12 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.tribuquest.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -56,6 +64,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d8d073f4-e163-4004-81f5-97c15aa338ed"
+      }
+    },
+    "owner": "souheylh-team"
   }
 }
