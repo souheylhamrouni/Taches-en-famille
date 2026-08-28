@@ -17,7 +17,7 @@ async function request<T = any>(path: string, init: RequestInit = {}): Promise<T
   const headers: any = { "Content-Type": "application/json", ...(init.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;
-  const r = await fetch(`${API}/api${path}`, { ...init, headers });
+  const r = await fetch(`${API}/${path}`, { ...init, headers });
   const text = await r.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
