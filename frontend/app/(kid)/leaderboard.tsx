@@ -39,7 +39,7 @@ export default function Leaderboard() {
               {podium[2] && <PodiumBlock member={podium[2]} place={3} height={70} me={user?.id} />}
             </View>
             <Card>
-              {rest.length === 0 && <Text style={s.hint}>Le podium résume la famille !</Text>}
+              {rest.length === 0 && <Text style={s.hint}>Le podium résume la tribu !</Text>}
               {rest.map((m, i) => (
                 <View key={m.id} style={s.row}>
                   <Text style={s.rank}>{i + 4}</Text>

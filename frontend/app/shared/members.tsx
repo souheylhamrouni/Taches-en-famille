@@ -58,7 +58,7 @@ export default function Members() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>Membres</Text>
-          <Text style={s.sub}>{family?.name || "Ma famille"} · {members.length} membre(s)</Text>
+          <Text style={s.sub}>{family?.name || "Ma tribu"} · {members.length} membre(s)</Text>
         </View>
       </View>
 
@@ -74,7 +74,7 @@ export default function Members() {
 
         {family && (
           <View style={s.codeCard}>
-            <Text style={s.codeTitle}>🏠 Code famille</Text>
+            <Text style={s.codeTitle}>🏠 Code tribu</Text>
             <Text style={s.codeHelp}>{"Partagez ce code pour rattacher un enfant ou un second parent."}</Text>
             <Text style={s.code} selectable>{family.id}</Text>
           </View>

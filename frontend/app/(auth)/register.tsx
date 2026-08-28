@@ -34,13 +34,13 @@ export default function Register() {
         if (!pin.match(/^\d{4}$/)) throw new Error("PIN à 4 chiffres requis");
         payload.pin = pin;
         if (parentMode === "new") {
-          payload.family_name = familyName || `Famille de ${name}`;
+          payload.family_name = familyName || `Tribu ${name}`;
         } else {
-          if (!familyId.trim()) throw new Error("Code famille requis pour rejoindre une famille");
+          if (!familyId.trim()) throw new Error("Code tribu requis pour rejoindre une tribu");
           payload.family_id = familyId.trim();
         }
       } else {
-        if (!familyId) throw new Error("Code famille requis pour un enfant");
+        if (!familyId) throw new Error("Code tribu requis pour un enfant");
         payload.family_id = familyId.trim();
       }
       await register(payload);
@@ -102,27 +102,27 @@ export default function Register() {
                 <View style={styles.modeRow}>
                   <Pressable testID="parent-mode-new" onPress={() => setParentMode("new")}
                     style={[styles.modeChip, parentMode === "new" && styles.modeChipActive]}>
-                    <Text style={[styles.modeText, parentMode === "new" && styles.modeTextActive]}>🏠 Nouvelle famille</Text>
+                    <Text style={[styles.modeText, parentMode === "new" && styles.modeTextActive]}>🏠 Nouvelle tribu</Text>
                   </Pressable>
                   <Pressable testID="parent-mode-join" onPress={() => setParentMode("join")}
                     style={[styles.modeChip, parentMode === "join" && styles.modeChipActive]}>
-                    <Text style={[styles.modeText, parentMode === "join" && styles.modeTextActive]}>🤝 Rejoindre une famille</Text>
+                    <Text style={[styles.modeText, parentMode === "join" && styles.modeTextActive]}>🤝 Rejoindre une tribu</Text>
                   </Pressable>
                 </View>
  
                 {parentMode === "new" ? (
                   <>
-                    <Text style={styles.label}>Nom de la famille</Text>
+                    <Text style={styles.label}>Nom de la tribu</Text>
                     <TextInput testID="register-familyname-input" value={familyName} onChangeText={setFamilyName}
-                      placeholder="Famille Dupont" placeholderTextColor={T.onSurfaceMuted} style={styles.input} />
+                      placeholder="Tribu Dupont" placeholderTextColor={T.onSurfaceMuted} style={styles.input} />
                   </>
                 ) : (
                   <>
-                    <Text style={styles.label}>{"Code famille (fourni par l'autre parent)"}</Text>
+                    <Text style={styles.label}>{"Code tribu (fourni par l'autre parent)"}</Text>
                     <TextInput testID="register-parent-familyid-input" value={familyId} onChangeText={setFamilyId}
-                      placeholder="collez le code famille" placeholderTextColor={T.onSurfaceMuted}
+                      placeholder="collez le code tribu" placeholderTextColor={T.onSurfaceMuted}
                       autoCapitalize="none" style={styles.input} />
-                    <Text style={styles.helper}>Vous aurez les mêmes droits que le parent qui a créé la famille.</Text>
+                    <Text style={styles.helper}>Vous aurez les mêmes droits que le parent qui a créé la tribu.</Text>
                   </>
                 )}
  
@@ -133,9 +133,9 @@ export default function Register() {
               </>
             ) : (
               <>
-                <Text style={styles.label}>Code famille (fourni par un parent)</Text>
+                <Text style={styles.label}>Code tribu (fourni par un parent)</Text>
                 <TextInput testID="register-familyid-input" value={familyId} onChangeText={setFamilyId}
-                  placeholder="collez le code famille" placeholderTextColor={T.onSurfaceMuted}
+                  placeholder="collez le code tribu" placeholderTextColor={T.onSurfaceMuted}
                   autoCapitalize="none" style={styles.input} />
               </>
             )}

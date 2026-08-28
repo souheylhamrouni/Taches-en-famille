@@ -70,7 +70,7 @@ export default function KidTasks() {
       const status = res?.status;
       setFlash(status === "approved"
         ? `🎉 Bravo ! +${t.points_worth} points`
-        : "✅ Preuve envoyée ! En attente de validation famille");
+        : "✅ Preuve envoyée ! En attente de validation tribu");
       setTimeout(() => setFlash(null), 3000);
       if (res?.new_badges?.length) setNewBadges(res.new_badges);
       await load();
@@ -148,7 +148,7 @@ export default function KidTasks() {
                     </>}
               </Pressable>
             )}
-            {filter === "pending" && <Text style={s.pending}>⏳ En attente du vote de la famille</Text>}
+            {filter === "pending" && <Text style={s.pending}>⏳ En attente du vote de la tribu</Text>}
             {filter === "rejected" && <Text style={s.rejected}>❌ Preuve rejetée</Text>}
             {filter === "approved" && <Text style={s.approved}>✅ Validée · +{t.points_worth} pts</Text>}
           </Card>

@@ -15,9 +15,9 @@ export default function More() {
 
   const links = [
     { id: "account", label: "Mon compte", icon: "person-circle" as const, path: "/shared/account" },
-    { id: "challenges", label: "Défi familial", icon: "flag" as const, path: "/shared/challenges" },
+    { id: "challenges", label: "Défi tribal", icon: "flag" as const, path: "/shared/challenges" },
     { id: "badges", label: "Mes badges", icon: "ribbon" as const, path: "/shared/badges" },
-    { id: "calendar", label: "Calendrier familial", icon: "calendar" as const, path: "/shared/calendar" },
+    { id: "calendar", label: "Calendrier tribal", icon: "calendar" as const, path: "/shared/calendar" },
     { id: "shopping", label: "Liste de courses", icon: "cart" as const, path: "/shared/shopping" },
     { id: "validations", label: "Valider les preuves", icon: "checkmark-done-circle" as const, path: "/shared/validate" },
   ];

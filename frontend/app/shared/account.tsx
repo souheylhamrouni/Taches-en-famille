@@ -25,7 +25,7 @@ export default function Account() {
     catch (e: any) { flash(e.message, true); }
   };
   const saveFamily = async () => {
-    try { await api.patch("/family", { name: famName.trim() }); flash("✅ Nom de famille mis à jour"); }
+    try { await api.patch("/family", { name: famName.trim() }); flash("✅ Nom de tribu mis à jour"); }
     catch (e: any) { flash(e.message, true); }
   };
   const savePassword = async () => {
@@ -54,8 +54,8 @@ export default function Account() {
 
           {isParent && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Nom de la famille</Text>
-              <TextInput testID="account-family-input" value={famName} onChangeText={setFamName} placeholder="Nouveau nom de famille" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
+              <Text style={s.cardTitle}>Nom de la tribu</Text>
+              <TextInput testID="account-family-input" value={famName} onChangeText={setFamName} placeholder="Nouveau nom de tribu" placeholderTextColor={T.onSurfaceMuted} style={s.input} />
               <Pressable testID="save-family-button" onPress={saveFamily} style={s.btn}><Text style={s.btnText}>Enregistrer</Text></Pressable>
             </View>
           )}

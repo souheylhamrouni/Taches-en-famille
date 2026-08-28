@@ -59,28 +59,33 @@ class TestAccountEndpoints:
         requests.patch(f"{API}/auth/profile", json={"name": "Papa"},
                        headers=_headers(parent_token), timeout=20)
 
-    def test_password_wrong_current(self, parent_token):
+    def test_password_wrong_current(self):
+        # Register isolated parent
+        import uuid
+        email = f"TEST_pw_{uuid.uuid4().hex[:6]}@demo.fr"
+        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "1234"})
+        assert r.status_code == 200
+        tok = r.json()["access_token"]
         r = requests.patch(f"{API}/auth/password",
                            json={"current_password": "WRONGPASS", "new_password": "demo1234"},
-                           headers=_headers(parent_token), timeout=20)
+                           headers=_headers(tok), timeout=20)
         assert r.status_code == 401
 
-    def test_password_correct(self, parent_token):
-        # change and revert
+    def test_password_correct(self):
+        import uuid
+        email = f"TEST_pw_{uuid.uuid4().hex[:6]}@demo.fr"
+        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "1234"})
+        assert r.status_code == 200
+        tok = r.json()["access_token"]
+        # change password
         r = requests.patch(f"{API}/auth/password",
                            json={"current_password": "demo1234", "new_password": "demo12345"},
-                           headers=_headers(parent_token), timeout=20)
+                           headers=_headers(tok), timeout=20)
         assert r.status_code == 200
         # confirm new works
         r2 = requests.post(f"{API}/auth/login",
-                          json={"email": PARENT["email"], "password": "demo12345"}, timeout=20)
+                          json={"email": email, "password": "demo12345"}, timeout=20)
         assert r2.status_code == 200
-        # revert
-        tok2 = r2.json()["access_token"]
-        r3 = requests.patch(f"{API}/auth/password",
-                            json={"current_password": "demo12345", "new_password": "demo1234"},
-                            headers=_headers(tok2), timeout=20)
-        assert r3.status_code == 200
 
     def test_family_rename_parent(self, parent_token):
         r = requests.patch(f"{API}/family", json={"name": "TEST_Famille"},

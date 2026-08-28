@@ -89,7 +89,7 @@ export default function Challenges() {
           <Ionicons name="chevron-back" size={24} color={T.onSurface} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>Défi familial</Text>
+          <Text style={s.title}>Défi tribal</Text>
           <Text style={s.sub}>{"Objectif d'équipe hebdomadaire"}</Text>
         </View>
         {isParent && !challenge && (
@@ -142,7 +142,7 @@ export default function Challenges() {
 
             {done ? (
               <View style={s.doneBanner}>
-                <Text style={s.doneBannerText}>🎉 Défi réussi ! Bonus distribué à toute la famille</Text>
+                <Text style={s.doneBannerText}>🎉 Défi réussi ! Bonus distribué à toute la tribu</Text>
               </View>
             ) : (
               <Text style={s.hintText}>{"💪 Continuez à valider des tâches ensemble pour atteindre l'objectif !"}</Text>

@@ -33,16 +33,16 @@ export default function Settings() {
         <Pressable testID="link-members" onPress={() => router.push("/shared/members")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="people" size={22} color={T.orange} /></View>
-          <Text style={s.rowLabel}>Membres de la famille</Text>
+          <Text style={s.rowLabel}>Membres de la tribu</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
         <Pressable testID="link-challenge" onPress={() => router.push("/shared/challenges")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="flag" size={22} color={T.orange} /></View>
-          <Text style={s.rowLabel}>Défi familial</Text>
+          <Text style={s.rowLabel}>Défi tribal</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
-        <Pressable testID="link-pauses" onPress={() => router.push("/shared/pauses")}
+        <Pressable testID="link-pauses" onPress={() => router.push("/shared/pauses" as any)}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="pause-circle" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Pauses & congés</Text>
@@ -51,7 +51,7 @@ export default function Settings() {
         <Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="calendar" size={22} color={T.orange} /></View>
-          <Text style={s.rowLabel}>Calendrier familial</Text>
+          <Text style={s.rowLabel}>Calendrier tribal</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
         <Pressable testID="link-shopping" onPress={() => router.push("/shared/shopping")}
