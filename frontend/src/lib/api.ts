@@ -8,7 +8,7 @@ export const storage = {
   del: (k: string) => Platform.OS === "web" ? AsyncStorage.removeItem(k) : SecureStore.deleteItemAsync(k),
 };
 
-const API = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+const API = process.env.EXPO_PUBLIC_BACKEND_URL || "https://tribuquest-backend.onrender.com";
 export const BACKEND_URL = API;
 
 async function request<T = any>(path: string, init: RequestInit = {}): Promise<T> {
@@ -17,7 +17,8 @@ async function request<T = any>(path: string, init: RequestInit = {}): Promise<T
   const headers: any = { "Content-Type": "application/json", ...(init.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;
-  const r = await fetch(`${API}/${path}`, { ...init, headers });
+  const url = path.startsWith("http") ? path : `${API}${path}`;
+  const r = await fetch(url, { ...init, headers });
   const text = await r.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
