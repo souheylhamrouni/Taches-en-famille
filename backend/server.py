@@ -27,10 +27,17 @@ ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
  
 USE_MOCK = os.environ.get("USE_MOCK_DB", "false").lower() == "true"
+
+def _require_env(name: str) -> str:
+    v = os.environ.get(name)
+    if not v:
+        raise RuntimeError(f"Variable d'environnement requise manquante: {name}")
+    return v
+
  
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://127.0.0.1:27017/taches_famille")
-DB_NAME = os.environ.get("DB_NAME", "taches_famille")
-JWT_SECRET = os.environ.get("JWT_SECRET", "secret-dev-key")
+MONGO_URL = _require_env("MONGO_URL")
+DB_NAME = _require_env("DB_NAME")
+JWT_SECRET = _require_env("JWT_SECRET")
 ALGO = "HS256"
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
