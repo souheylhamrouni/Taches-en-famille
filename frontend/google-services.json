@@ -1,32 +1,13 @@
 {
   "project_info": {
-    "project_number": "192280798135",
-    "project_id": "taches-en-famille-c4ba4",
-    "storage_bucket": "taches-en-famille-c4ba4.firebasestorage.app"
+    "project_number": "198443896246",
+    "project_id": "tribuquest",
+    "storage_bucket": "tribuquest.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:192280798135:android:86deecd590b94b6d937e32",
-        "android_client_info": {
-          "package_name": "com.emergent.tachesenfamille.wlnd8j"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDIB_v7pjPzWgxQ6Loytrj0cL0VqSCkqx0"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:192280798135:android:a895c5a42c01203c937e32",
+        "mobilesdk_app_id": "1:198443896246:android:b678a590e2db51044b0517",
         "android_client_info": {
           "package_name": "com.tribuquest.app"
         }
@@ -34,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDIB_v7pjPzWgxQ6Loytrj0cL0VqSCkqx0"
+          "current_key": "AIzaSyD4ewITUfN3hPN72SvZRU0l7-aUvrcoP0E"
         }
       ],
       "services": {
