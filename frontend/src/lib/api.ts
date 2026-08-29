@@ -17,7 +17,13 @@ async function request<T = any>(path: string, init: RequestInit = {}): Promise<T
   const headers: any = { "Content-Type": "application/json", ...(init.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;
-  const url = path.startsWith("http") ? path : `${API}${path}`;
+  let cleanPath = path;
+  if (!cleanPath.startsWith("http")) {
+    if (!cleanPath.startsWith("/api")) {
+      cleanPath = `/api${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
+    }
+  }
+  const url = cleanPath.startsWith("http") ? cleanPath : `${API}${cleanPath}`;
   const r = await fetch(url, { ...init, headers });
   const text = await r.text();
   let body: any = null;
@@ -37,7 +43,14 @@ export const api = {
     const headers: any = {};
     if (token) headers.Authorization = `Bearer ${token}`;
     if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;
-    const r = await fetch(`${API}/api${p}`, { method: "POST", body: form, headers });
+    let cleanPath = p;
+    if (!cleanPath.startsWith("http")) {
+      if (!cleanPath.startsWith("/api")) {
+        cleanPath = `/api${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
+      }
+    }
+    const url = cleanPath.startsWith("http") ? cleanPath : `${API}${cleanPath}`;
+    const r = await fetch(url, { method: "POST", body: form, headers });
     const text = await r.text();
     let body: any = null;
     try { body = text ? JSON.parse(text) : null; } catch { body = text; }
