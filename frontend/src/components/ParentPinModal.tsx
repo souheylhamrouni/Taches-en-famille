@@ -43,7 +43,7 @@ export default function ParentPinModal({ visible, onSuccess, onCancel }: Props) 
       <View style={s.backdrop}>
         <View style={s.card} testID="parent-pin-modal">
           <Text style={{ fontSize: 44, marginBottom: S.sm }}>🔐</Text>
-          <Text style={s.title}>PIN parent</Text>
+          <Text style={s.title}>PIN adulte</Text>
           <Text style={s.sub}>Entrez votre code à 4 chiffres</Text>
 
           <View style={s.dotsRow}>

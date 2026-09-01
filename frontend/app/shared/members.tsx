@@ -39,7 +39,7 @@ export default function Members() {
         <Text style={s.name}>
           {m.name}{m.id === user?.id ? " (moi)" : ""}
         </Text>
-        <Text style={s.role}>{m.role === "parent" ? "👑 Parent" : "🧒 Enfant"}</Text>
+        <Text style={s.role}>{m.role === "parent" ? "👑 Adulte" : "🧒 Enfant"}</Text>
       </View>
       {m.role === "child" && (
         <View style={s.stats}>
@@ -66,7 +66,7 @@ export default function Members() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.brand} />}>
         {members.length === 0 && <EmptyState emoji="👨‍👩‍👧‍👦" title="Aucun membre" />}
 
-        {parents.length > 0 && <Text style={s.section}>Parents</Text>}
+        {parents.length > 0 && <Text style={s.section}>Adultes</Text>}
         {parents.map(m => <Row key={m.id} m={m} />)}
 
         {kids.length > 0 && <Text style={s.section}>Enfants</Text>}
@@ -75,7 +75,7 @@ export default function Members() {
         {family && (
           <View style={s.codeCard}>
             <Text style={s.codeTitle}>🏠 Code tribu</Text>
-            <Text style={s.codeHelp}>{"Partagez ce code pour rattacher un enfant ou un second parent."}</Text>
+            <Text style={s.codeHelp}>{"Partagez ce code pour rattacher un enfant ou un second adulte."}</Text>
             <Text style={s.code} selectable>{family.id}</Text>
           </View>
         )}

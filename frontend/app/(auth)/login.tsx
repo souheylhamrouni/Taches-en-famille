@@ -80,7 +80,7 @@ export default function Login() {
             <View style={{ gap: S.sm }}>
               <Pressable testID="demo-parent-button" onPress={() => fillDemo("papa@demo.fr")} style={styles.demoRow}>
                 <Ionicons name="shield-checkmark" size={20} color={T.orange} />
-                <Text style={styles.demoText}>Papa (parent) · PIN 1234</Text>
+                <Text style={styles.demoText}>Papa (adulte) · PIN 1234</Text>
               </Pressable>
               <Pressable testID="demo-kid-lea-button" onPress={() => fillDemo("lea@demo.fr")} style={styles.demoRow}>
                 <Text style={{ fontSize: 20 }}>🐻</Text>

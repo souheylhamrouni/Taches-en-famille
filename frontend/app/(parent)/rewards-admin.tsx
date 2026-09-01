@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, storage } from "@/src/lib/api";
 import { T, S, R } from "@/src/lib/theme";
@@ -30,6 +30,7 @@ export default function RewardsAdmin() {
   const [flash, setFlash] = useState<string | null>(null);
   
   const { user } = useAuth();
+  const router = useRouter();
   const isParent = user?.role === "parent";
 
   const load = useCallback(async () => {
@@ -78,7 +79,7 @@ export default function RewardsAdmin() {
       resetForm();
       setOpenAdd(false);
       await load();
-      setFlash("✨ Récompense enregistrée");
+      setFlash("✨ Cadeau enregistré");
       setTimeout(() => setFlash(null), 3000);
     } catch (e: any) {
       if (String(e.message).includes("PIN")) {
@@ -134,8 +135,13 @@ export default function RewardsAdmin() {
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenHeader
-        title="Récompenses"
+        title="Cadeaux"
         subtitle="Catalogue et gestion des remises"
+        left={
+          <Pressable testID="back-button" onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={T.onSurface} />
+          </Pressable>
+        }
         right={
           tab === "catalog" ? (
             <Pressable testID="open-add-reward" onPress={openCreate} style={s.addBtn}>
@@ -178,7 +184,7 @@ export default function RewardsAdmin() {
         {tab === "catalog" ? (
           <>
             {rewards.length === 0 && (
-              <EmptyState emoji="🎁" title="Aucune récompense" subtitle="Ajoute-en avec le bouton +" />
+              <EmptyState emoji="🎁" title="Aucun cadeau" subtitle="Ajoute-en avec le bouton +" />
             )}
             {rewards.map((r) => (
               <Card key={r.id} testID={`admin-reward-${r.id}`}>
@@ -234,7 +240,7 @@ export default function RewardsAdmin() {
               <EmptyState
                 emoji="🎉"
                 title={claimsFilter === "pending" ? "Tout est remis !" : "Aucune demande trouvée"}
-                subtitle={claimsFilter === "pending" ? "Aucune récompense en attente de livraison" : ""}
+                subtitle={claimsFilter === "pending" ? "Aucun cadeau en attente de livraison" : ""}
               />
             )}
 
@@ -286,7 +292,7 @@ export default function RewardsAdmin() {
         <View style={s.mBackdrop}>
           <View style={[s.mCard, { paddingBottom: insets.bottom + S.lg }]}>
             <Text style={s.mTitle}>
-              {editingId ? "Modifier la récompense" : "Nouvelle récompense"}
+              {editingId ? "Modifier le cadeau" : "Nouveau cadeau"}
             </Text>
             <TextInput
               testID="reward-title-input"
@@ -353,6 +359,7 @@ export default function RewardsAdmin() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.surface },
   addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.orange, alignItems: "center", justifyContent: "center", borderBottomWidth: 3, borderBottomColor: "#C77500" },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: T.white, borderWidth: 2, borderColor: T.border },
   tabsWrap: { flexDirection: "row", marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: T.surfaceSecondary, borderRadius: R.pill, padding: 4 },
   tabItem: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: R.pill },
   tabItemActive: { backgroundColor: T.white, shadowColor: T.shadow, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },

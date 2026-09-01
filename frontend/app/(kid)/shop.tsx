@@ -51,7 +51,7 @@ export default function Shop() {
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenHeader
-        title="Boutique"
+        title="Cadeau"
         subtitle="Dépense tes points et suis tes cadeaux"
         right={user ? <PointsPill value={user.points} /> : null}
       />
@@ -63,7 +63,7 @@ export default function Shop() {
           onPress={() => setTab("catalog")}
           style={[s.tabItem, tab === "catalog" && s.tabItemActive]}
         >
-          <Text style={[s.tabText, tab === "catalog" && s.tabTextActive]}>🎁 Boutique</Text>
+          <Text style={[s.tabText, tab === "catalog" && s.tabTextActive]}>🎁 Cadeau</Text>
         </Pressable>
         <Pressable
           testID="tab-shop-myclaims"
@@ -88,7 +88,7 @@ export default function Shop() {
       >
         {tab === "catalog" ? (
           rewards.length === 0 ? (
-            <EmptyState emoji="🎁" title="La boutique est vide !" subtitle="Demande à un parent d'ajouter des récompenses" />
+            <EmptyState emoji="🎁" title="Aucun cadeau disponible" subtitle="Demande à un adulte d'ajouter des cadeaux" />
           ) : (
             <View style={s.grid}>
               {rewards.map((r) => {
@@ -123,7 +123,7 @@ export default function Shop() {
         ) : (
           /* My Claims Tab */
           myClaims.length === 0 ? (
-            <EmptyState emoji="🛍️" title="Aucun cadeau réclamé" subtitle="Choisis une récompense dans la boutique !" />
+            <EmptyState emoji="🛍️" title="Aucun cadeau réclamé" subtitle="Choisis un cadeau !" />
           ) : (
             <View style={{ gap: S.sm }}>
               {myClaims.map((c) => {
@@ -136,8 +136,8 @@ export default function Shop() {
                         <Text style={s.claimTitle}>{c.reward_title}</Text>
                         <Text style={s.claimSub}>
                           {isDelivered
-                            ? `Remis par ${c.delivered_by_name || "un parent"} !`
-                            : "En attente de remise par un parent"}
+                            ? `Remis par ${c.delivered_by_name || "un adulte"} !`
+                            : "En attente de remise par un adulte"}
                         </Text>
                       </View>
                       <View style={[s.statusBadge, isDelivered ? s.badgeDelivered : s.badgePending]}>

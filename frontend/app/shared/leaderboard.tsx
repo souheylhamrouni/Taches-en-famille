@@ -1,14 +1,16 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
  
 export default function Leaderboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [members, setMembers] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
  
@@ -24,7 +26,15 @@ export default function Leaderboard() {
  
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-      <ScreenHeader title="Classement" subtitle="Cette semaine" />
+      <ScreenHeader 
+      title="Classement" 
+      subtitle="Cette semaine" 
+      left={
+          <Pressable testID="back-button" onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={T.onSurface} />
+          </Pressable>
+        }
+        />
       <ScrollView
         contentContainerStyle={{ padding: S.lg, paddingBottom: S.xxxl, gap: S.lg }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.brand} />}
@@ -77,6 +87,7 @@ const s = StyleSheet.create({
   rank: { width: 32, fontWeight: "900", color: T.onSurfaceMuted, fontSize: 16 },
   name: { flex: 1, fontWeight: "800", color: T.onSurface, fontSize: 15 },
   pts: { fontWeight: "900", color: T.brand },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: T.white, borderWidth: 2, borderColor: T.border },
   hint: { color: T.onSurfaceMuted, textAlign: "center", padding: S.md },
 });
 const podiumS = StyleSheet.create({

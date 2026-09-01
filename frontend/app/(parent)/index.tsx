@@ -65,7 +65,7 @@ export default function ParentDashboard() {
       >
         <View style={{ flexDirection: "row", gap: S.sm }}>
           <StatBox label="À valider" value={pending.length} color={T.orange} onPress={() => router.push("/shared/validate")} testID="stat-pending" />
-          <StatBox label="Récompenses" value={claims.length} color={T.brand} testID="stat-claims" />
+          <StatBox label="Cadeaux" value={claims.length} color={T.brand} onPress={() => router.push("/(parent)/rewards-admin")}testID="stat-claims" />
           <StatBox label="Pénalités" value={penalties.length} color={T.red} testID="stat-penalties" />
         </View>
  
@@ -104,7 +104,7 @@ export default function ParentDashboard() {
             <Pressable
               key={t.id}
               testID={`home-task-${t.id}`}
-              onPress={() => router.push("/(kid)/tasks")}
+              onPress={() => router.push("/shared/mytasks")}
               style={({ pressed }) => [s.taskRow, pressed && { opacity: 0.9 }]}
             >
               <View style={s.taskIcon}><Ionicons name="ellipse-outline" size={22} color={T.brand} /></View>
@@ -147,18 +147,20 @@ export default function ParentDashboard() {
  
         <View>
           <Text style={s.sectionTitle}>🏆 Top de la semaine</Text>
-          <Card>
-            {top.length === 0 ? <Text style={s.hint}>Pas encore de leaders</Text> :
-              top.map((m, i) => (
-                <View key={m.id} style={s.row}>
-                  <Text style={{ fontSize: 24, width: 32 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</Text>
-                  <Text style={{ fontSize: 22 }}>{m.avatar}</Text>
-                  <Text style={s.rowName}>{m.name}</Text>
-                  <Text style={s.rowPts}>{m.points} pts · 🔥{m.streak}</Text>
-                </View>
-              ))
-            }
-          </Card>
+          <Pressable testID="leaderboard-card" onPress={() => router.push("/shared/leaderboard")}>
+            <Card>
+              {top.length === 0 ? <Text style={s.hint}>Pas encore de leaders</Text> :
+                top.map((m, i) => (
+                  <View key={m.id} style={s.row}>
+                    <Text style={{ fontSize: 24, width: 32 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</Text>
+                    <Text style={{ fontSize: 22 }}>{m.avatar}</Text>
+                    <Text style={s.rowName}>{m.name}</Text>
+                    <Text style={s.rowPts}>{m.points} pts · 🔥{m.streak}</Text>
+                  </View>
+                ))
+              }
+            </Card>
+          </Pressable>
         </View>
  
         <View>
@@ -166,7 +168,7 @@ export default function ParentDashboard() {
           <View style={s.shortcuts}>
             <Shortcut icon="checkmark-done-circle" label="Valider" onPress={() => router.push("/shared/validate")} testID="short-validate" badge={pending.length} />
             <Shortcut icon="flame" label="Mes tâches" onPress={() => router.push("/shared/mytasks")} testID="short-mytasks" />
-            <Shortcut icon="gift" label="Boutique" onPress={() => router.push("/shared/myrewards")} testID="short-myrewards" />
+            <Shortcut icon="gift" label="Cadeau" onPress={() => router.push("/shared/myrewards")} testID="short-myrewards" />
             <Shortcut icon="flag" label="Défi" onPress={() => router.push("/shared/challenges")} testID="short-challenge" />
           </View>
           <View style={[s.shortcuts, { marginTop: S.sm }]}>

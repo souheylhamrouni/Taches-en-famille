@@ -104,7 +104,7 @@ export default function Challenges() {
 
         {!challenge ? (
           <EmptyState emoji="🎯" title="Aucun défi cette semaine"
-            subtitle={isParent ? "Crée un défi d'équipe avec le bouton +" : "Un parent doit lancer un défi"} />
+            subtitle={isParent ? "Crée un défi d'équipe avec le bouton +" : "Un adulte doit lancer un défi"} />
         ) : (
           <View style={[s.card, done && { borderColor: T.gold, backgroundColor: "#FFFBEA" }]} testID="challenge-card">
             <View style={s.cardTop}>
@@ -137,7 +137,7 @@ export default function Challenges() {
 
             <View style={s.bonusRow}>
               <Ionicons name="gift" size={18} color={T.orange} />
-              <Text style={s.bonusText}>Récompense : +{challenge.bonus_points} points pour chaque enfant</Text>
+              <Text style={s.bonusText}>Cadeau : +{challenge.bonus_points} points pour chaque enfant</Text>
             </View>
 
             {done ? (

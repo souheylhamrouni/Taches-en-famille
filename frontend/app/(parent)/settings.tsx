@@ -21,7 +21,7 @@ export default function Settings() {
         <Card>
           <Text style={s.who}>{user?.avatar} {user?.name}</Text>
           <Text style={s.email}>{user?.email}</Text>
-          <Text style={s.role}>👑 Parent</Text>
+          <Text style={s.role}>👑 Adulte</Text>
         </Card>
 
         <Pressable testID="link-account" onPress={() => router.push("/shared/account")}
@@ -63,7 +63,7 @@ export default function Settings() {
         <Pressable testID="clear-pin-button" onPress={clearPin}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="lock-closed" size={22} color={T.orange} /></View>
-          <Text style={s.rowLabel}>Verrouiller le mode parent</Text>
+          <Text style={s.rowLabel}>Verrouiller le mode adulte</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
 

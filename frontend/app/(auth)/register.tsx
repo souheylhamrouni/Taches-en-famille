@@ -60,7 +60,7 @@ export default function Register() {
               onPress={() => { setRole("parent"); setAvatar(AVATARS_PARENT[0]); }}
               style={[styles.roleChip, role === "parent" && styles.roleChipActive]}
             >
-              <Text style={[styles.roleText, role === "parent" && styles.roleTextActive]}>👨‍👩 Parent</Text>
+              <Text style={[styles.roleText, role === "parent" && styles.roleTextActive]}>👨‍👩 Adulte</Text>
             </Pressable>
             <Pressable
               testID="role-child-button"
@@ -98,7 +98,7 @@ export default function Register() {
  
             {role === "parent" ? (
               <>
-                <Text style={styles.label}>Type de compte parent</Text>
+                <Text style={styles.label}>Type de compte adulte</Text>
                 <View style={styles.modeRow}>
                   <Pressable testID="parent-mode-new" onPress={() => setParentMode("new")}
                     style={[styles.modeChip, parentMode === "new" && styles.modeChipActive]}>
@@ -118,22 +118,22 @@ export default function Register() {
                   </>
                 ) : (
                   <>
-                    <Text style={styles.label}>{"Code tribu (fourni par l'autre parent)"}</Text>
+                    <Text style={styles.label}>{"Code tribu (fourni par l'autre adulte)"}</Text>
                     <TextInput testID="register-parent-familyid-input" value={familyId} onChangeText={setFamilyId}
                       placeholder="collez le code tribu" placeholderTextColor={T.onSurfaceMuted}
                       autoCapitalize="none" style={styles.input} />
-                    <Text style={styles.helper}>Vous aurez les mêmes droits que le parent qui a créé la tribu.</Text>
+                    <Text style={styles.helper}>Vous aurez les mêmes droits que le adulte qui a créé la tribu.</Text>
                   </>
                 )}
  
-                <Text style={styles.label}>Code PIN parent (4 chiffres)</Text>
+                <Text style={styles.label}>Code PIN adulte (4 chiffres)</Text>
                 <TextInput testID="register-pin-input" value={pin} onChangeText={setPin}
                   placeholder="1234" placeholderTextColor={T.onSurfaceMuted}
                   keyboardType="number-pad" maxLength={4} secureTextEntry style={styles.input} />
               </>
             ) : (
               <>
-                <Text style={styles.label}>Code tribu (fourni par un parent)</Text>
+                <Text style={styles.label}>Code tribu (fourni par un adulte)</Text>
                 <TextInput testID="register-familyid-input" value={familyId} onChangeText={setFamilyId}
                   placeholder="collez le code tribu" placeholderTextColor={T.onSurfaceMuted}
                   autoCapitalize="none" style={styles.input} />

@@ -3,9 +3,10 @@ import { View, Text, Pressable, StyleSheet, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { T, S, R } from "@/src/lib/theme";
 
-export function ScreenHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+export function ScreenHeader({ title, subtitle, right, left }: { title: string; subtitle?: string; right?: React.ReactNode; left?: React.ReactNode }) {
   return (
     <View style={h.wrap}>
+      {left}
       <View style={{ flex: 1 }}>
         <Text style={h.title}>{title}</Text>
         {subtitle ? <Text style={h.sub}>{subtitle}</Text> : null}

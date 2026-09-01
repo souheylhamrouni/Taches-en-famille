@@ -39,7 +39,7 @@ export default function MyRewards() {
           <Ionicons name="chevron-back" size={24} color={T.onSurface} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>Boutique</Text>
+          <Text style={s.title}>Cadeau</Text>
           <Text style={s.sub}>Dépensez vos points</Text>
         </View>
         {user ? <PointsPill value={user.points} /> : null}
@@ -47,7 +47,7 @@ export default function MyRewards() {
       {flash ? <View style={s.flash} testID="myrewards-flash"><Text style={s.flashText}>{flash}</Text></View> : null}
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: S.xxxl }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.brand} />}>
-        {rewards.length === 0 ? <EmptyState emoji="🎁" title="Boutique vide" subtitle="Aucune récompense pour l'instant" /> : (
+        {rewards.length === 0 ? <EmptyState emoji="🎁" title="Cadeau vide" subtitle="Aucun cadeau pour l'instant" /> : (
           <View style={s.grid}>
             {rewards.map(r => {
               const can = (user?.points || 0) >= r.point_cost;

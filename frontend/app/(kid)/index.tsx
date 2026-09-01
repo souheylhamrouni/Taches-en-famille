@@ -153,6 +153,7 @@ export default function KidHome() {
  
         <View>
           <Text style={s.sectionTitle}>🏆 Podium hebdomadaire</Text>
+          <Pressable testID="leaderboard-card" onPress={() => router.push("/shared/leaderboard")}>
           <Card>
             {top.length === 0 ? <Text style={s.hint}>Pas encore de classement</Text> : (
               top.map((m, i) => (
@@ -165,6 +166,7 @@ export default function KidHome() {
               ))
             )}
           </Card>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
