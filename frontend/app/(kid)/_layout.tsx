@@ -1,10 +1,15 @@
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { T } from "@/src/lib/theme";
+import { useAuth } from "@/src/lib/auth";
 
 export default function KidLayout() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  if (!user || user.role !== "child") {
+    return <Redirect href="/(auth)/login" />;
+  }
   return (
     <Tabs
       screenOptions={{

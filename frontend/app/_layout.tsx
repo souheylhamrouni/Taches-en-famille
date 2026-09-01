@@ -10,6 +10,7 @@ import * as Linking from "expo-linking";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider, useAuth } from "@/src/lib/auth";
 import { BACKEND_URL, storage } from "@/src/lib/api";
+import WebSecurityHeaders from "@/src/lib/web-security";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -98,6 +99,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
+          <WebSecurityHeaders />
           <AuthedGate />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FFFDF7" } }} />
         </AuthProvider>

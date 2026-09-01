@@ -8,6 +8,7 @@ import { T, S, R } from "@/src/lib/theme";
 import { useAuth } from "@/src/lib/auth";
 import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
+import { rewardSchema } from "@/src/lib/validations";
 
 const ICONS = ["🎮", "🎬", "🍦", "🍕", "🛌", "💶", "🎁", "🚴", "📚"];
 
@@ -74,8 +75,18 @@ export default function RewardsAdmin() {
 
   const submit = async () => {
     setErr(null);
+    const parsed = rewardSchema.safeParse({
+      title,
+      point_cost: parseInt(cost) || 100,
+      icon,
+    });
+    if (!parsed.success) {
+      setErr(parsed.error.issues[0]?.message || "Formulaire invalide");
+      return;
+    }
+    const payload = parsed.data;
     try {
-      await api.post("/rewards", { title, point_cost: parseInt(cost) || 100, icon });
+      await api.post("/rewards", payload);
       resetForm();
       setOpenAdd(false);
       await load();

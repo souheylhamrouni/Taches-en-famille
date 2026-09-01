@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal, Switch, ActivityIndicator, Platform} from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput, Modal, Switch, Platform, ActivityIndicator} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect,useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import { ScreenHeader, EmptyState, Card } from "@/src/components/UI";
 import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
 import { useCelebration } from "@/src/hooks/use-celebration";
 import BadgeUnlockModal from "@/src/components/BadgeUnlockModal";
+import { taskSchema } from "@/src/lib/validations";
  
 export default function TasksAdmin() {
   const insets = useSafeAreaInsets();
@@ -101,8 +102,19 @@ export default function TasksAdmin() {
  
   const submit = async () => {
     setErr(null);
-    const payload = { title, points_worth: parseInt(points) || 20, penalty_points: parseInt(penalty) || 0,
-      frequency: freq, photo_required: photoReq, assigned_to: selected };
+    const parsed = taskSchema.safeParse({
+      title,
+      points_worth: parseInt(points) || 20,
+      penalty_points: parseInt(penalty) || 0,
+      frequency: freq,
+      photo_required: photoReq,
+      assigned_to: selected,
+    });
+    if (!parsed.success) {
+      setErr(parsed.error.issues[0]?.message || "Formulaire invalide");
+      return;
+    }
+    const payload = parsed.data;
     try {
       if (editingId) await api.patch(`/tasks/${editingId}`, payload);
       else await api.post("/tasks", payload);

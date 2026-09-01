@@ -11,29 +11,61 @@ type Props = {
 };
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
+const MAX_PIN_LENGTH = 6;
+const MAX_ATTEMPTS = 3;
+const LOCK_SECONDS = 30;
 
 export default function ParentPinModal({ visible, onSuccess, onCancel }: Props) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
 
-  useEffect(() => { if (visible) { setPin(""); setErr(null); setBusy(false); } }, [visible]);
+  useEffect(() => { if (visible) { setPin(""); setErr(null); setBusy(false); setAttempts(0); setLockUntil(null); } }, [visible]);
+
+  useEffect(() => {
+    if (!lockUntil) return;
+    const interval = setInterval(async () => {
+      if (Date.now() >= lockUntil) {
+        setLockUntil(null);
+        setAttempts(0);
+        setErr(null);
+      } else {
+        setErr(`Trop de tentatives. Réessayez dans ${Math.ceil((lockUntil - Date.now()) / 1000)}s`);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [lockUntil]);
 
   const submit = async (val: string) => {
+    if (lockUntil && Date.now() < lockUntil) return;
     setBusy(true); setErr(null);
-    try { await verifyPin(val); onSuccess(); }
-    catch (e: any) { setErr(e.message); setPin(""); setBusy(false); }
+    try {
+      await verifyPin(val);
+      setAttempts(0);
+      onSuccess();
+    } catch (e: any) {
+      const next = attempts + 1;
+      setAttempts(next);
+      setErr(e.message);
+      setPin("");
+      if (next >= MAX_ATTEMPTS) {
+        setLockUntil(Date.now() + LOCK_SECONDS * 1000);
+      }
+      setBusy(false);
+    }
   };
 
   const press = (k: string) => {
-    if (busy) return;
+    if (busy || (lockUntil && Date.now() < lockUntil)) return;
     if (k === "del") { setErr(null); setPin(p => p.slice(0, -1)); return; }
     if (k === "") return;
     setErr(null);
     setPin(p => {
-      if (p.length >= 4) return p;
+      if (p.length >= MAX_PIN_LENGTH) return p;
       const next = p + k;
-      if (next.length === 4) submit(next);
+      if (next.length === MAX_PIN_LENGTH) submit(next);
       return next;
     });
   };
@@ -44,10 +76,10 @@ export default function ParentPinModal({ visible, onSuccess, onCancel }: Props) 
         <View style={s.card} testID="parent-pin-modal">
           <Text style={{ fontSize: 44, marginBottom: S.sm }}>🔐</Text>
           <Text style={s.title}>PIN adulte</Text>
-          <Text style={s.sub}>Entrez votre code à 4 chiffres</Text>
+          <Text style={s.sub}>Entrez votre code à {MAX_PIN_LENGTH} chiffres</Text>
 
           <View style={s.dotsRow}>
-            {[0, 1, 2, 3].map(i => (
+            {Array.from({ length: MAX_PIN_LENGTH }).map((_, i) => (
               <View key={i} style={[s.dot, pin.length > i && s.dotFilled]} />
             ))}
           </View>
@@ -62,13 +94,13 @@ export default function ParentPinModal({ visible, onSuccess, onCancel }: Props) 
                 if (k === "") return <View key={idx} style={s.key} />;
                 if (k === "del") return (
                   <Pressable key={idx} testID="pin-key-del" onPress={() => press(k)}
-                    style={({ pressed }) => [s.key, pressed && s.keyPressed]}>
+                    style={({ pressed }) => [s.key, pressed && s.keyPressed]} disabled={!!lockUntil && Date.now() < lockUntil}>
                     <Ionicons name="backspace-outline" size={26} color={T.onSurface} />
                   </Pressable>
                 );
                 return (
                   <Pressable key={idx} testID={`pin-key-${k}`} onPress={() => press(k)}
-                    style={({ pressed }) => [s.key, s.keyNum, pressed && s.keyPressed]}>
+                    style={({ pressed }) => [s.key, s.keyNum, pressed && s.keyPressed]} disabled={!!lockUntil && Date.now() < lockUntil}>
                     <Text style={s.keyText}>{k}</Text>
                   </Pressable>
                 );

@@ -11,6 +11,18 @@ export const storage = {
 const API = process.env.EXPO_PUBLIC_BACKEND_URL || "https://tribuquest-backend.onrender.com";
 export const BACKEND_URL = API;
 
+function mapError(body: any, status: number): Error {
+  const msg = body?.detail || body?.message || `HTTP ${status}`;
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    return new Error(msg);
+  }
+  if (status === 401) return new Error("Session expirée. Veuillez vous reconnecter.");
+  if (status === 403) return new Error("Accès refusé.");
+  if (status === 404) return new Error("Ressource introuvable.");
+  if (status >= 500) return new Error("Erreur serveur. Veuillez réessayer plus tard.");
+  return new Error("Une erreur est survenue.");
+}
+
 async function request<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await storage.get("access_token");
   const pinToken = await storage.get("parent_pin_token");
@@ -28,7 +40,7 @@ async function request<T = any>(path: string, init: RequestInit = {}): Promise<T
   const text = await r.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-  if (!r.ok) throw new Error(body?.detail || body?.message || `HTTP ${r.status}`);
+  if (!r.ok) throw mapError(body, r.status);
   return body;
 }
 
@@ -54,7 +66,7 @@ export const api = {
     const text = await r.text();
     let body: any = null;
     try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-    if (!r.ok) throw new Error(body?.detail || `HTTP ${r.status}`);
+    if (!r.ok) throw mapError(body, r.status);
     return body;
   },
 };
