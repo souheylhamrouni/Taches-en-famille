@@ -8,7 +8,7 @@ from app.db.mongo import db
 from app.core.security import passwords, DUMMY, new_id, now, make_token, current_user
 from app.core.rate_limiter import pin_limiter, auth_limiter
 from app.models.user import (
-    UserRegister, UserLogin, PinVerify, ProfileUpdate,
+    UserRegister, UserLogin, PinVerify, PinChange, ProfileUpdate,
     PasswordUpdate, ForgotPasswordRequest, ResetPasswordRequest
 )
 
@@ -22,8 +22,8 @@ async def register(body: UserRegister):
     auth_limiter.check(f"register_{email}", max_attempts=15, window_seconds=60)
     
     if body.role == "parent":
-        if not body.pin or len(body.pin) != 4 or not body.pin.isdigit():
-            raise HTTPException(400, "Le code PIN de 4 chiffres est obligatoire pour les parents")
+        if not body.pin or len(body.pin) != 6 or not body.pin.isdigit():
+            raise HTTPException(400, "Le code PIN de 6 chiffres est obligatoire pour les parents")
 
     existing = await db.users.find_one({"email": email})
     if existing:
@@ -146,6 +146,28 @@ async def verify_pin(body: PinVerify, user=Depends(current_user)):
     pin_limiter.reset(limiter_key)
     pin_token = make_token(user, minutes=15, purpose="parent_pin")
     return {"pin_token": pin_token, "expires_in_minutes": 15}
+
+
+@router.patch("/pin")
+async def change_pin(body: PinChange, user=Depends(current_user)):
+    if user.get("role") != "parent":
+        raise HTTPException(403, "Rôle parent requis")
+    
+    limiter_key = f"pin_{user['id']}"
+    pin_limiter.check(limiter_key, max_attempts=5, window_seconds=60, lockout_seconds=300)
+    
+    db_u = await db.users.find_one({"id": user["id"]})
+    stored_hash = db_u.get("pin_hash") if db_u else None
+    if not stored_hash or not passwords.verify(body.current_pin, stored_hash):
+        pin_limiter.record_failure(limiter_key)
+        raise HTTPException(401, "Code PIN actuel incorrect")
+    
+    pin_limiter.reset(limiter_key)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"pin_hash": passwords.hash(body.new_pin)}}
+    )
+    return {"ok": True}
 
 
 @router.patch("/profile")

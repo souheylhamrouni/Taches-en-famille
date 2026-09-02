@@ -28,8 +28,11 @@ export default function ParentLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Tableau", tabBarIcon: ({ color }) => <Ionicons name="grid" size={22} color={color} /> }} />
       <Tabs.Screen name="tasks-admin" options={{ title: "Tâches", tabBarIcon: ({ color }) => <Ionicons name="list" size={22} color={color} /> }} />
+      
       <Tabs.Screen name="calendar" options={{ title: "Calendrier", tabBarIcon: ({ color }) => <Ionicons name="calendar" size={22} color={color} /> }} />
+      
       <Tabs.Screen name="shopping" options={{ title: "Courses", tabBarIcon: ({ color }) => <Ionicons name="cart" size={22} color={color} /> }} />
+      
       <Tabs.Screen name="rewards-admin" options={{ title: "Cadeaux", tabBarIcon: ({ color }) => <Ionicons name="gift" size={22} color={color} /> }} />
       <Tabs.Screen name="settings" options={{ title: "Réglages", tabBarIcon: ({ color }) => <Ionicons name="settings" size={22} color={color} /> }} />
     </Tabs>

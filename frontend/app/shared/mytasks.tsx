@@ -114,7 +114,9 @@ export default function MyTasks() {
           <View key={t.id} style={s.doneRow} testID={`mytask-done-${t.id}`}>
             <Ionicons name="checkmark-circle" size={20} color={T.brand} />
             <Text style={s.doneText}>{t.title}</Text>
-            <Text style={s.doneStatus}>{t.today_status === "pending" ? "⏳" : t.today_status === "approved" ? "✅" : "❌"}</Text>
+            <Text style={s.doneStatus}>
+              {t.today_status === "claimed" ? "🤝" : t.today_status === "pending" ? "⏳" : t.today_status === "approved" ? "✅" : "❌"}
+            </Text>
           </View>
         ))}
       </ScrollView>

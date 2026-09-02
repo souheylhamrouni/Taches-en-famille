@@ -17,7 +17,7 @@ def test_register_parent_new_family_creates_family():
     email = _email("p1new")
     r = requests.post(f"{API}/auth/register", json={
         "email": email, "password": "pass1234", "name": "Papa1",
-        "role": "parent", "family_name": "TEST Famille A", "pin": "1234",
+        "role": "parent", "family_name": "TEST Famille A", "pin": "123456",
     })
     assert r.status_code == 200, r.text
     data = r.json()
@@ -38,7 +38,7 @@ def test_second_parent_join_full_flow():
     p1_email = _email("p1")
     r1 = requests.post(f"{API}/auth/register", json={
         "email": p1_email, "password": "pass1234", "name": "Papa",
-        "role": "parent", "family_name": "TEST Famille Join", "pin": "1234",
+        "role": "parent", "family_name": "TEST Famille Join", "pin": "123456",
     })
     assert r1.status_code == 200, r1.text
     fam_id = r1.json()["family_id"]
@@ -149,8 +149,8 @@ def test_demo_parent_login():
     d = r.json()
     assert d["user"]["email"] == "papa@demo.fr"
     assert d["user"]["role"] == "parent"
-    # PIN 1234 works
-    pin = requests.post(f"{API}/auth/pin/verify", json={"pin": "1234"},
+    # PIN 123456 works
+    pin = requests.post(f"{API}/auth/pin/verify", json={"pin": "123456"},
                         headers={"Authorization": f"Bearer {d['access_token']}"})
     assert pin.status_code == 200
 

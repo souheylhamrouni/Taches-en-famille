@@ -15,7 +15,7 @@ def _login(email, password):
     return r.json()
 
 
-def _pin(token, pin="1234"):
+def _pin(token, pin="123456"):
     r = requests.post(f"{API}/auth/pin/verify", json={"pin": pin},
                       headers={"Authorization": f"Bearer {token}"}, timeout=30)
     assert r.status_code == 200, r.text

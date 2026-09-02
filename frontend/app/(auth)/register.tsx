@@ -128,7 +128,7 @@ export default function Register() {
  
                 <Text style={styles.label}>Code PIN adulte (4 chiffres)</Text>
                 <TextInput testID="register-pin-input" value={pin} onChangeText={setPin}
-                  placeholder="1234" placeholderTextColor={T.onSurfaceMuted}
+                  placeholder="123456" placeholderTextColor={T.onSurfaceMuted}
                   keyboardType="number-pad" maxLength={4} secureTextEntry style={styles.input} />
               </>
             ) : (

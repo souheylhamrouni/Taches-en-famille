@@ -88,6 +88,10 @@ export async function verifyPin(pin: string) {
   await storage.set("parent_pin_token", data.pin_token);
 }
 
+export async function changePin(currentPin: string, newPin: string) {
+  await api.patch("/auth/pin", { current_pin: currentPin, new_pin: newPin });
+}
+
 export async function clearPin() {
   await storage.del("parent_pin_token");
 }

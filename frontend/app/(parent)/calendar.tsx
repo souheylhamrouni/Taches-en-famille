@@ -1,1 +1,1 @@
-export { default } from "../shared/shopping";
+export { default } from "../shared/calendar";

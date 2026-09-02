@@ -48,7 +48,7 @@ export default function Settings() {
           <Text style={s.rowLabel}>Pauses & congés</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
-        <Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
+        {/*<Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="calendar" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Calendrier tribal</Text>
@@ -59,7 +59,7 @@ export default function Settings() {
           <View style={s.iconWrap}><Ionicons name="cart" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Liste de courses</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
-        </Pressable>
+        </Pressable>*/}
         <Pressable testID="clear-pin-button" onPress={clearPin}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="lock-closed" size={22} color={T.orange} /></View>

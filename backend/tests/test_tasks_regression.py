@@ -14,7 +14,7 @@ API = f"{BASE_URL}/api"
 
 PARENT = {"email": "papa@demo.fr", "password": "demo1234"}
 KID = {"email": "lea@demo.fr", "password": "demo1234"}
-PIN = "1234"
+PIN = "123456"
 
 
 @pytest.fixture(scope="module")

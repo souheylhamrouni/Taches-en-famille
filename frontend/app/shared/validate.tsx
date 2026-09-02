@@ -12,6 +12,7 @@ import { useCelebration } from "@/src/hooks/use-celebration";
 
 export default function ValidateFeed() {
   const { user } = useAuth();
+  const isParent = user?.role === "parent";
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,6 +59,12 @@ export default function ValidateFeed() {
                       <Text style={s.who}>{c.user_name}</Text>
                       <Text style={s.what}>{c.task_title} · +{c.points_worth} pts</Text>
                     </View>
+                    {c.shared_task && (
+                      <View style={s.sharedBadge}>
+                        <Ionicons name="people" size={12} color={T.brand} />
+                        <Text style={s.sharedBadgeText}>Partagée</Text>
+                      </View>
+                    )}
                   </View>
                   {c.photo_path && (
                     <Image
@@ -71,7 +78,9 @@ export default function ValidateFeed() {
                     <Text style={s.voteCount}>✅ {c.votes.filter((v:any) => v.approved).length}</Text>
                     <Text style={s.voteCount}>❌ {c.votes.filter((v:any) => !v.approved).length}</Text>
                   </View>
-                  {canVote ? (
+                  {canVote ? (        
+                    <>        
+                    {isParent &&(
                     <View style={s.actions}>
                       <Pressable testID={`reject-${c.id}`} onPress={() => vote(c.id, false)}
                         style={({ pressed }) => [s.btn, { backgroundColor: T.red, borderBottomColor: "#C93333" }, pressed && { opacity: 0.85 }]}>
@@ -84,6 +93,8 @@ export default function ValidateFeed() {
                         <Text style={s.btnText}>Approuver</Text>
                       </Pressable>
                     </View>
+                    )}
+                    </>
                   ) : (
                     <Text style={s.voted}>
                       {c.user_id === user?.id ? "Votre propre preuve" : c.my_vote ? "Vous avez approuvé" : "Vous avez rejeté"}
@@ -106,6 +117,8 @@ const s = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: S.md },
   who: { fontWeight: "900", color: T.onSurface, fontSize: 16 },
   what: { color: T.onSurfaceMuted, fontSize: 13, marginTop: 2 },
+  sharedBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#EFFBE0", paddingHorizontal: 8, paddingVertical: 4, borderRadius: R.pill },
+  sharedBadgeText: { fontSize: 10, fontWeight: "800", color: T.brand },
   photo: { width: "100%", height: 260, borderRadius: R.md, backgroundColor: T.surfaceSecondary },
   votesInfo: { flexDirection: "row", gap: S.md },
   voteCount: { fontWeight: "900", fontSize: 14 },

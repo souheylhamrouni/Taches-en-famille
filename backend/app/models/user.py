@@ -23,6 +23,11 @@ class PinVerify(BaseModel):
     pin: str
 
 
+class PinChange(BaseModel):
+    current_pin: str = Field(min_length=4, max_length=6, pattern=r'^\d{4,6}$')
+    new_pin: str = Field(min_length=6, max_length=6, pattern=r'^\d{6}$')
+
+
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     avatar: Optional[str] = None

@@ -10,6 +10,10 @@ from app.services.storage import storage_provider
 from app.services.push import push_service
 from app.services.gamification import award_task_completion, check_challenge_completion, week_start_key
 from app.services.penalties import is_paused
+from app.services.shared_claims import (
+    get_shared_claim, create_shared_claim, is_task_shared,
+    is_task_claimed_by_other
+)
 
 log = logging.getLogger("tribuquest.tasks")
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -26,17 +30,17 @@ async def list_tasks(user=Depends(current_user)):
         {"family_id": user["family_id"], "active": {"$ne": False}},
         {"_id": 0}
     ).to_list(500)
-    
+
     today_key = date.today().isoformat()
     week_key = week_start_key()
-    
+
     # Today's completions
     comps = await db.completions.find(
         {"family_id": user["family_id"], "user_id": user["id"], "day": today_key},
         {"_id": 0}
     ).to_list(500)
     by_task = {c["task_id"]: c for c in comps}
-    
+
     # Weekly completions
     week_comps = await db.completions.find(
         {
@@ -50,7 +54,14 @@ async def list_tasks(user=Depends(current_user)):
     week_by_task = {}
     for c in week_comps:
         week_by_task.setdefault(c["task_id"], c)
-    
+
+    # Shared claims for today
+    shared_claims = await db.shared_claims.find(
+        {"family_id": user["family_id"], "day": today_key},
+        {"_id": 0}
+    ).to_list(500)
+    claims_by_task = {sc["task_id"]: sc for sc in shared_claims}
+
     paused = await is_paused(user["family_id"], user["id"], today_key)
     if paused:
         return {"tasks": [], "paused": True}
@@ -60,9 +71,31 @@ async def list_tasks(user=Depends(current_user)):
             c = week_by_task.get(t["id"]) or by_task.get(t["id"])
         else:
             c = by_task.get(t["id"])
-        t["today_status"] = c["status"] if c else "todo"
-        t["today_completion_id"] = c["id"] if c else None
-    
+
+        # Check if task is shared and claimed by someone else
+        claim = claims_by_task.get(t["id"])
+        if claim and claim["claimed_by"] != user["id"]:
+            if claim["status"] == "approved":
+                t["today_status"] = "approved"
+                t["today_completion_id"] = None
+                t["shared_claim"] = {"claimed_by_name": claim["claimed_by_name"], "status": "approved"}
+            elif claim["status"] == "pending":
+                t["today_status"] = "claimed"
+                t["today_completion_id"] = None
+                t["shared_claim"] = {"claimed_by_name": claim["claimed_by_name"], "status": "pending"}
+            else:
+                # rejected - task is available again
+                t["today_status"] = c["status"] if c else "todo"
+                t["today_completion_id"] = c["id"] if c else None
+        elif claim and claim["claimed_by"] == user["id"]:
+            # Current user claimed it
+            t["today_status"] = claim["status"]
+            t["today_completion_id"] = c["id"] if c else None
+            t["shared_claim"] = {"claimed_by_name": claim["claimed_by_name"], "status": claim["status"]}
+        else:
+            t["today_status"] = c["status"] if c else "todo"
+            t["today_completion_id"] = c["id"] if c else None
+
     return {"tasks": tasks, "paused": paused}
 
 
@@ -134,6 +167,13 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         raise HTTPException(404, "Tâche introuvable")
 
     day_key = date.today().isoformat()
+
+    # Check if task is shared and already claimed by someone else
+    if is_task_shared(task):
+        existing_claim = await is_task_claimed_by_other(task_id, user["id"], day_key)
+        if existing_claim:
+            raise HTTPException(409, f"Tâche déjà réclamée par {existing_claim['claimed_by_name']}")
+
     existing = await db.completions.find_one({"task_id": task_id, "user_id": user["id"], "day": day_key})
     if existing:
         raise HTTPException(409, "Déjà soumis aujourd'hui")
@@ -143,11 +183,11 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         if not photo:
             raise HTTPException(400, "Photo requise")
         data = await photo.read()
-        
+
         # Max 10MB image limit
         if len(data) > 10 * 1024 * 1024:
             raise HTTPException(400, "La photo dépasse la taille maximale autorisée (10 Mo)")
-            
+
         ext = (photo.filename or "img.jpg").rsplit(".", 1)[-1].lower()
         if ext not in ("jpg", "jpeg", "png", "webp", "heic"):
             ext = "jpg"
@@ -175,6 +215,10 @@ async def complete_task(task_id: str, photo: Optional[UploadFile] = File(None), 
         "created_at": now(),
     }
     await db.completions.insert_one(comp)
+
+    # Create shared claim for multi-assignee tasks
+    if is_task_shared(task):
+        await create_shared_claim(task_id, user["family_id"], user["id"], user["name"])
 
     new_badges = []
     if comp["status"] == "approved":

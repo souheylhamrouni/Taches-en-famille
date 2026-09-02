@@ -33,14 +33,14 @@ def _register(role="parent", family_id=None, pin=None):
     if family_id:
         body["family_id"] = family_id
     if role == "parent":
-        body["pin"] = pin or "1234"
+        body["pin"] = pin or "123456"
     r = _post("/auth/register", json=body)
     assert r.status_code == 200, r.text
     d = r.json()
     return d["access_token"], d["user"], d["family_id"]
 
 
-def _pin_token(access, pin="1234"):
+def _pin_token(access, pin="123456"):
     r = _post("/auth/pin/verify", json={"pin": pin}, headers={"Authorization": f"Bearer {access}"})
     assert r.status_code == 200, r.text
     return r.json()["pin_token"]
@@ -49,8 +49,8 @@ def _pin_token(access, pin="1234"):
 class TestRewardDeliveryWorkflow:
     def test_complete_reward_claim_and_deliver_flow(self):
         # 1. Register family (1 parent, 1 kid)
-        p_tok, p_user, fam_id = _register("parent", pin="1234")
-        p_pin = _pin_token(p_tok, "1234")
+        p_tok, p_user, fam_id = _register("parent", pin="123456")
+        p_pin = _pin_token(p_tok, "123456")
         c_tok, c_user, _ = _register("child", family_id=fam_id)
 
         # 2. Parent creates a reward costing 50 points
@@ -106,7 +106,7 @@ class TestRewardDeliveryWorkflow:
 
 class TestRateLimiter:
     def test_pin_brute_force_lockout(self):
-        p_tok, _, _ = _register("parent", pin="1234")
+        p_tok, _, _ = _register("parent", pin="123456")
         
         # 5 wrong attempts
         for _ in range(5):
@@ -114,5 +114,5 @@ class TestRateLimiter:
             assert r.status_code == 401
 
         # 6th attempt should trigger 429 Too Many Requests
-        r6 = _post("/auth/pin/verify", json={"pin": "1234"}, headers={"Authorization": f"Bearer {p_tok}"})
+        r6 = _post("/auth/pin/verify", json={"pin": "123456"}, headers={"Authorization": f"Bearer {p_tok}"})
         assert r6.status_code == 429

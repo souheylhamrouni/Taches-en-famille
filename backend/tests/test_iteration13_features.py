@@ -15,7 +15,7 @@ API = f"{BASE_URL}/api"
 
 PARENT = {"email": "papa@demo.fr", "password": "demo1234"}
 KID = {"email": "lea@demo.fr", "password": "demo1234"}
-PIN = "1234"
+PIN = "123456"
 
 
 @pytest.fixture(scope="module")
@@ -63,7 +63,7 @@ class TestAccountEndpoints:
         # Register isolated parent
         import uuid
         email = f"TEST_pw_{uuid.uuid4().hex[:6]}@demo.fr"
-        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "1234"})
+        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "123456"})
         assert r.status_code == 200
         tok = r.json()["access_token"]
         r = requests.patch(f"{API}/auth/password",
@@ -74,7 +74,7 @@ class TestAccountEndpoints:
     def test_password_correct(self):
         import uuid
         email = f"TEST_pw_{uuid.uuid4().hex[:6]}@demo.fr"
-        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "1234"})
+        r = requests.post(f"{API}/auth/register", json={"email": email, "password": "demo1234", "name": "PW Test", "role": "parent", "pin": "123456"})
         assert r.status_code == 200
         tok = r.json()["access_token"]
         # change password

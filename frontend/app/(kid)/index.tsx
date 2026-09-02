@@ -7,6 +7,7 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 import { Card, PointsPill, StreakPill, EmptyState, ScreenHeader } from "@/src/components/UI";
+import TodayEvents from "../shared/today-events";
  
 export default function KidHome() {
   const { user, refresh } = useAuth();
@@ -38,7 +39,7 @@ export default function KidHome() {
     (t.assigned_to?.length === 0) || t.assigned_to.includes(user?.id)
   );
   const todoCount = myTasks.filter(t => t.today_status === "todo").length;
-  const doneCount = myTasks.filter(t => t.today_status !== "todo").length;
+  const doneCount = myTasks.filter(t => t.today_status !== "todo" && t.today_status !== "claimed").length;
   const progress = myTasks.length ? doneCount / myTasks.length : 0;
  
   if (!user) return null;
@@ -60,7 +61,9 @@ export default function KidHome() {
           </View>
         </View>
  
+        <TodayEvents onPress={() => router.push("/shared/calendar")} />
         <Card testID="progress-card">
+
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: S.sm }}>
             <Text style={s.cardTitle}>Ma quête du jour</Text>
             <Text style={s.progressText}>{doneCount}/{myTasks.length}</Text>
@@ -125,7 +128,7 @@ export default function KidHome() {
             <EmptyState emoji="😴" title="Aucune quête aujourd'hui !" subtitle="Reviens demain pour de nouvelles missions" />
           )}
         </View>
- 
+  
         <View>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm }}>
             <Text style={s.sectionTitle}>🏅 Mes badges</Text>

@@ -7,6 +7,7 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 import { Card, PointsPill, StreakPill, EmptyState, ScreenHeader } from "@/src/components/UI";
+import TodayEvents from "../shared/today-events";
  
  
 export default function ParentDashboard() {
@@ -53,7 +54,7 @@ export default function ParentDashboard() {
     (t.assigned_to?.length === 0) || t.assigned_to.includes(user?.id)
   );
   const todoCount = myTasks.filter(t => t.today_status === "todo").length;
-  const doneCount = myTasks.filter(t => t.today_status !== "todo").length;
+  const doneCount = myTasks.filter(t => t.today_status !== "todo" && t.today_status !== "claimed").length;
   const progress = myTasks.length ? doneCount / myTasks.length : 0;
  
   return (
@@ -68,6 +69,8 @@ export default function ParentDashboard() {
           <StatBox label="Cadeaux" value={claims.length} color={T.brand} onPress={() => router.push("/(parent)/rewards-admin")}testID="stat-claims" />
           <StatBox label="Pénalités" value={penalties.length} color={T.red} testID="stat-penalties" />
         </View>
+
+        <TodayEvents onPress={() => router.push("/shared/calendar")} />
  
         <Card testID="progress-card">
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: S.sm }}>
@@ -119,7 +122,7 @@ export default function ParentDashboard() {
             <EmptyState emoji="😴" title="Aucune quête aujourd'hui !" subtitle="Reviens demain pour de nouvelles missions" />
           )}
         </View>
- 
+  
         <View>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm }}>
             <Text style={s.sectionTitle}>🏅 Mes badges</Text>

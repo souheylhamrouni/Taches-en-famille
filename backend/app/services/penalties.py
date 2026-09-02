@@ -5,6 +5,7 @@ from typing import Optional, List
 from app.db.mongo import db
 from app.core.security import new_id, now
 from app.services.push import push_service
+from app.services.shared_claims import get_approved_shared_claim_for_task
 
 log = logging.getLogger("tribuquest.penalties")
 
@@ -23,7 +24,8 @@ async def is_paused(family_id: str, user_id: str, day_str: Optional[str] = None)
 
 async def apply_daily_penalties(only_family_id: Optional[str] = None):
     """Runs at 20:00 daily: check incomplete daily tasks and apply penalty.
-    Idempotent per (user, task, day)."""
+    Idempotent per (user, task, day).
+    For shared tasks with an approved claim, assignees are not penalized."""
     log.info("Running daily penalty check")
     today_key = date.today().isoformat()
     fam_query = {"id": only_family_id} if only_family_id else {}
@@ -35,19 +37,31 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
         done = {(c["task_id"], c["user_id"]): c["status"] for c in comps}
         existing_pen = await db.penalties.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
         penalized = {(pn["task_id"], pn["user_id"]) for pn in existing_pen}
-        
+
+        # Get all approved shared claims for today
+        approved_claims = await db.shared_claims.find(
+            {"family_id": fam["id"], "day": today_key, "status": "approved"},
+            {"_id": 0, "task_id": 1}
+        ).to_list(500)
+        approved_shared_task_ids = {c["task_id"] for c in approved_claims}
+
         for u in users:
             if await is_paused(fam["id"], u["id"], today_key):
                 continue
             for t in tasks:
                 if t.get("assigned_to") and u["id"] not in t["assigned_to"]:
                     continue
+
+                # Skip if this is a shared task with an approved claim
+                if t["id"] in approved_shared_task_ids:
+                    continue
+
                 status = done.get((t["id"], u["id"]))
                 if status in ("pending", "approved"):
                     continue
                 if (t["id"], u["id"]) in penalized:
                     continue  # already penalized today
-                
+
                 pts = t.get("penalty_points", 50)
                 await db.users.update_one(
                     {"id": u["id"]},
@@ -68,7 +82,8 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
 
 
 async def send_evening_reminders():
-    """Runs at 19:00: warn users with unfinished daily tasks."""
+    """Runs at 19:00: warn users with unfinished daily tasks.
+    Users are not reminded about shared tasks that have been claimed by someone else."""
     log.info("Sending 19:00 evening reminders")
     today_key = date.today().isoformat()
     families = await db.families.find({}, {"_id": 0}).to_list(500)
@@ -77,12 +92,23 @@ async def send_evening_reminders():
         users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0}).to_list(50)
         comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
         submitted = {(c["task_id"], c["user_id"]) for c in comps}
+
+        # Get all shared claims for today (any status - if claimed, others don't need reminder)
+        shared_claims = await db.shared_claims.find(
+            {"family_id": fam["id"], "day": today_key},
+            {"_id": 0, "task_id": 1, "claimed_by": 1}
+        ).to_list(500)
+        claimed_task_ids = {sc["task_id"] for sc in shared_claims}
+
         for u in users:
             if await is_paused(fam["id"], u["id"], today_key):
                 continue
             missing = []
             for t in tasks:
                 if t.get("assigned_to") and u["id"] not in t["assigned_to"]:
+                    continue
+                # Skip shared tasks claimed by someone else
+                if t["id"] in claimed_task_ids:
                     continue
                 if (t["id"], u["id"]) not in submitted:
                     missing.append(t["title"])

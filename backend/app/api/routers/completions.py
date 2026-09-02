@@ -1,11 +1,13 @@
 """Completions validation and peer-voting router."""
 import logging
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from app.db.mongo import db
 from app.core.security import current_user
 from app.models.task import VoteRequest
 from app.services.push import push_service
 from app.services.gamification import award_task_completion, check_challenge_completion
+from app.services.shared_claims import update_shared_claim_status, is_task_shared
 
 log = logging.getLogger("tribuquest.completions")
 router = APIRouter(prefix="/completions", tags=["completions"])
@@ -17,10 +19,18 @@ async def pending_completions(user=Depends(current_user)):
         {"family_id": user["family_id"], "status": "pending"},
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
-    
+
+    # Get shared task IDs for this family
+    shared_tasks = await db.tasks.find(
+        {"family_id": user["family_id"], "active": {"$ne": False}, "assigned_to": {"$not": {"$size": 1}}},
+        {"_id": 0, "id": 1}
+    ).to_list(500)
+    shared_task_ids = {t["id"] for t in shared_tasks if len(t.get("assigned_to", [])) > 1}
+
     for c in comps:
         my = next((v for v in c.get("votes", []) if v["user_id"] == user["id"]), None)
         c["my_vote"] = my["approved"] if my else None
+        c["shared_task"] = c["task_id"] in shared_task_ids
     return {"completions": comps}
 
 
@@ -46,11 +56,19 @@ async def vote_completion(comp_id: str, body: VoteRequest, user=Depends(current_
     target_user = await db.users.find_one({"id": comp["user_id"]})
     push_token = target_user.get("push_token") if target_user else None
 
+    day_key = date.today().isoformat()
+
     if is_parent or approves >= 1:
         if approves > rejects or (is_parent and body.approved):
             await db.completions.update_one({"id": comp_id}, {"$set": {"status": "approved"}})
             await award_task_completion(comp["user_id"], comp["points_worth"])
             await check_challenge_completion(user["family_id"])
+
+            # Update shared claim status if this is a shared task
+            task = await db.tasks.find_one({"id": comp["task_id"], "family_id": user["family_id"]})
+            if task and is_task_shared(task):
+                await update_shared_claim_status(comp["task_id"], day_key, "approved")
+
             if push_token:
                 await push_service.send_push(
                     push_token,
@@ -60,6 +78,12 @@ async def vote_completion(comp_id: str, body: VoteRequest, user=Depends(current_
             resolved = True
         elif rejects > approves or (is_parent and not body.approved):
             await db.completions.update_one({"id": comp_id}, {"$set": {"status": "rejected"}})
+
+            # Update shared claim status if this is a shared task
+            task = await db.tasks.find_one({"id": comp["task_id"], "family_id": user["family_id"]})
+            if task and is_task_shared(task):
+                await update_shared_claim_status(comp["task_id"], day_key, "rejected")
+
             if push_token:
                 await push_service.send_push(
                     push_token,
@@ -67,5 +91,5 @@ async def vote_completion(comp_id: str, body: VoteRequest, user=Depends(current_
                     f"« {comp['task_title']} » : aucun point attribué."
                 )
             resolved = True
-            
+
     return {"ok": True, "resolved": resolved}

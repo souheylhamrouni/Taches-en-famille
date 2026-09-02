@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, ScrollView, Pressable, KeyboardAvoid
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { api } from "@/src/lib/api";
+import { api, changePin } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/auth";
 import { T, S, R } from "@/src/lib/theme";
 
@@ -15,6 +15,8 @@ export default function Account() {
   const [famName, setFamName] = useState("");
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
+  const [curPin, setCurPin] = useState("");
+  const [newPin, setNewPin] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -30,6 +32,10 @@ export default function Account() {
   };
   const savePassword = async () => {
     try { await api.patch("/auth/password", { current_password: curPw, new_password: newPw }); setCurPw(""); setNewPw(""); flash("✅ Mot de passe changé"); }
+    catch (e: any) { flash(e.message, true); }
+  };
+  const savePin = async () => {
+    try { await changePin(curPin, newPin); setCurPin(""); setNewPin(""); flash("✅ Code PIN modifié"); }
     catch (e: any) { flash(e.message, true); }
   };
 
@@ -66,6 +72,15 @@ export default function Account() {
             <TextInput testID="account-newpw-input" value={newPw} onChangeText={setNewPw} placeholder="Nouveau mot de passe" placeholderTextColor={T.onSurfaceMuted} secureTextEntry style={s.input} />
             <Pressable testID="save-password-button" onPress={savePassword} style={s.btn}><Text style={s.btnText}>Changer</Text></Pressable>
           </View>
+
+          {isParent && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>Changer le code PIN</Text>
+              <TextInput testID="account-curpin-input" value={curPin} onChangeText={setCurPin} placeholder="PIN actuel (4 ou 6 chiffres)" placeholderTextColor={T.onSurfaceMuted} secureTextEntry keyboardType="number-pad" maxLength={6} style={s.input} />
+              <TextInput testID="account-newpin-input" value={newPin} onChangeText={setNewPin} placeholder="Nouveau PIN (6 chiffres)" placeholderTextColor={T.onSurfaceMuted} secureTextEntry keyboardType="number-pad" maxLength={6} style={s.input} />
+              <Pressable testID="save-pin-button" onPress={savePin} style={s.btn}><Text style={s.btnText}>Changer le PIN</Text></Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

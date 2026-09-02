@@ -11,7 +11,7 @@ API = f"{BASE_URL}/api"
  
 PARENT = {"email": "papa@demo.fr", "password": "demo1234"}
 KID = {"email": "lea@demo.fr", "password": "demo1234"}
-PIN = "1234"
+PIN = "123456"
  
  
 @pytest.fixture(scope="session")
@@ -69,7 +69,7 @@ class TestAuth:
         assert r.status_code == 401
  
     def test_pin_kid_forbidden(self, s, kid_ctx):
-        r = s.post(f"{API}/auth/pin/verify", json={"pin": "1234"}, headers=kid_ctx["hdr"], timeout=15)
+        r = s.post(f"{API}/auth/pin/verify", json={"pin": "123456"}, headers=kid_ctx["hdr"], timeout=15)
         assert r.status_code == 403
  
     def test_register_family_and_child(self, s):

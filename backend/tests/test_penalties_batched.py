@@ -191,7 +191,7 @@ class TestDemoRegression:
         assert d["user"]["role"] == "parent"
         hdr = {"Authorization": f"Bearer {d['access_token']}"}
         pr = sess.post(f"{API}/auth/pin/verify",
-                       json={"pin": "1234"}, headers=hdr, timeout=15)
+                       json={"pin": "123456"}, headers=hdr, timeout=15)
         assert pr.status_code == 200
         return {"hdr": hdr,
                 "hdr_pin": {**hdr, "X-Parent-Pin-Token": pr.json()["pin_token"]},

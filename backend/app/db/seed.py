@@ -12,13 +12,21 @@ async def seed_demo():
     """Create a demo French family. Skips if already exists."""
     existing = await db.users.find_one({"email": "papa@demo.fr"})
     if existing:
+        # Migration: ensure demo parent PIN is up-to-date (123456)
+        new_hash = passwords.hash("123456")
+        if existing.get("pin_hash") != new_hash:
+            await db.users.update_one(
+                {"email": "papa@demo.fr"},
+                {"$set": {"pin_hash": new_hash}}
+            )
+            log.info("Migrated demo parent PIN to 123456")
         return {"ok": True, "message": "Déjà initialisé", "family_id": existing.get("family_id")}
 
     fam_id = new_id()
     await db.families.insert_one({"id": fam_id, "name": "Tribu Dupont", "created_at": now()})
 
     users_to_create = [
-        {"email": "papa@demo.fr", "name": "Papa", "role": "parent", "pin": "1234", "avatar": "🦸"},
+        {"email": "papa@demo.fr", "name": "Papa", "role": "parent", "pin": "123456", "avatar": "🦸"},
         {"email": "lea@demo.fr", "name": "Léa", "role": "child", "avatar": "🐻", "points": 320, "streak": 5, "total_earned": 560, "tasks_completed": 22},
         {"email": "hugo@demo.fr", "name": "Hugo", "role": "child", "avatar": "🦊", "points": 210, "streak": 3, "total_earned": 310, "tasks_completed": 12},
         {"email": "emma@demo.fr", "name": "Emma", "role": "child", "avatar": "🐼", "points": 150, "streak": 2, "total_earned": 180, "tasks_completed": 6},
@@ -101,7 +109,7 @@ async def seed_demo():
     log.info(f"Demo family successfully seeded with family_id {fam_id}")
     return {
         "ok": True, "family_id": fam_id, "credentials": [
-            {"role": "parent", "email": "papa@demo.fr", "password": "demo1234", "pin": "1234"},
+            {"role": "parent", "email": "papa@demo.fr", "password": "demo1234", "pin": "123456"},
             {"role": "child", "email": "lea@demo.fr", "password": "demo1234"},
             {"role": "child", "email": "hugo@demo.fr", "password": "demo1234"},
             {"role": "child", "email": "emma@demo.fr", "password": "demo1234"},

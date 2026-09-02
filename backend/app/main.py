@@ -34,6 +34,8 @@ async def lifespan(app: FastAPI):
         await db.users.create_index("family_id")
         await db.tasks.create_index("family_id")
         await db.completions.create_index([("task_id", 1), ("user_id", 1), ("day", 1)])
+        await db.shared_claims.create_index([("task_id", 1), ("day", 1)])
+        await db.shared_claims.create_index("family_id")
         await db.pauses.create_index("family_id")
     except Exception as e:
         log.warning(f"Index creation warning: {e}")

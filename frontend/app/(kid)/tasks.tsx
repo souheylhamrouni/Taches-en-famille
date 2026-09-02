@@ -13,6 +13,7 @@ import BadgeUnlockModal from "@/src/components/BadgeUnlockModal";
 
 const FILTERS = [
   { id: "todo", label: "À faire" },
+  { id: "claimed", label: "Réclamées" },
   { id: "pending", label: "En attente" },
   { id: "approved", label: "Validées" },
   { id: "rejected", label: "Rejetées" },
@@ -148,6 +149,11 @@ export default function KidTasks() {
                     </>}
               </Pressable>
             )}
+            {filter === "claimed" && (
+              <Text style={s.claimed}>
+                🤝 Réclamée par {t.shared_claim?.claimed_by_name || "quelqu'un"} — pas besoin de la faire !
+              </Text>
+            )}
             {filter === "pending" && <Text style={s.pending}>⏳ En attente du vote de la tribu</Text>}
             {filter === "rejected" && <Text style={s.rejected}>❌ Preuve rejetée</Text>}
             {filter === "approved" && <Text style={s.approved}>✅ Validée · +{t.points_worth} pts</Text>}
@@ -177,6 +183,7 @@ const s = StyleSheet.create({
   completeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: S.md, backgroundColor: T.brand, paddingVertical: 12, borderRadius: R.pill, borderBottomWidth: 4, borderBottomColor: T.brandDark },
   completeText: { color: T.white, fontWeight: "900", fontSize: 14 },
   pending: { marginTop: S.md, color: T.orange, fontWeight: "800" },
+  claimed: { marginTop: S.md, color: T.brand, fontWeight: "800" },
   rejected: { marginTop: S.md, color: T.red, fontWeight: "800" },
   approved: { marginTop: S.md, color: T.brand, fontWeight: "800" },
   pausedBanner: { flexDirection: "row", alignItems: "center", gap: S.md, margin: S.lg, marginBottom: 0, padding: S.md, backgroundColor: "#E3F2FD", borderRadius: R.lg, borderWidth: 2, borderColor: "#64B5F6" },

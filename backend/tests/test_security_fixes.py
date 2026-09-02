@@ -35,14 +35,14 @@ def _register(role="parent", family_id=None, pin=None):
     if family_id:
         body["family_id"] = family_id
     if role == "parent":
-        body["pin"] = pin or "1234"
+        body["pin"] = pin or "123456"
     r = _post("/auth/register", json=body)
     assert r.status_code == 200, r.text
     d = r.json()
     return d["access_token"], d["user"], d["family_id"]
 
 
-def _pin_token(access, pin="1234"):
+def _pin_token(access, pin="123456"):
     r = _post("/auth/pin/verify", json={"pin": pin},
               headers={"Authorization": f"Bearer {access}"})
     assert r.status_code == 200, r.text
@@ -53,7 +53,7 @@ def _demo_parent_tokens():
     r = _post("/auth/login", json={"email": "papa@demo.fr", "password": "demo1234"})
     assert r.status_code == 200, r.text
     access = r.json()["access_token"]
-    pin = _pin_token(access, "1234")
+    pin = _pin_token(access, "123456")
     return access, pin
 
 

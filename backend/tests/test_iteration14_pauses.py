@@ -17,7 +17,7 @@ API = f"{BASE_URL}/api"
 
 PARENT_EMAIL = "papa@demo.fr"
 PARENT_PW = "demo1234"
-PARENT_PIN = "1234"
+PARENT_PIN = "123456"
 KID_EMAILS = ["lea@demo.fr", "hugo@demo.fr", "emma@demo.fr"]
 
 

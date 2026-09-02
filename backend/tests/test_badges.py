@@ -21,7 +21,7 @@ def _login(email, password):
     return r.json()
 
 
-def _pin_hdr(tok, pin="1234"):
+def _pin_hdr(tok, pin="123456"):
     r = requests.post(f"{API}/auth/pin/verify", json={"pin": pin}, headers=_hdr(tok), timeout=15)
     assert r.status_code == 200, r.text
     return {**_hdr(tok), "X-Parent-Pin-Token": r.json()["pin_token"]}
@@ -66,7 +66,7 @@ def fresh_family():
     c_email = f"TEST_badge_c_{suffix}@ex.com"
     rp = requests.post(f"{API}/auth/register", json={
         "email": p_email, "password": "pass1234", "name": "TEST P",
-        "role": "parent", "family_name": "TEST_BadgeFam", "pin": "1234",
+        "role": "parent", "family_name": "TEST_BadgeFam", "pin": "123456",
     }, timeout=15)
     assert rp.status_code == 200, rp.text
     parent = rp.json()
@@ -96,7 +96,7 @@ class TestFreshChildBadgeUnlock:
         p_tok = fresh_family["parent"]["access_token"]
         c_tok = fresh_family["child"]["access_token"]
         child_id = fresh_family["child"]["user"]["id"]
-        p_hdr = _pin_hdr(p_tok, "1234")
+        p_hdr = _pin_hdr(p_tok, "123456")
 
         # Parent creates a non-photo task assigned to child
         rt = requests.post(f"{API}/tasks", json={
@@ -134,7 +134,7 @@ class TestFreshChildBadgeUnlock:
         p_tok = fresh_family["parent"]["access_token"]
         c_tok = fresh_family["child"]["access_token"]
         child_id = fresh_family["child"]["user"]["id"]
-        p_hdr = _pin_hdr(p_tok, "1234")
+        p_hdr = _pin_hdr(p_tok, "123456")
 
         rt = requests.post(f"{API}/tasks", json={
             "title": f"TEST_photo_{uuid.uuid4().hex[:4]}",
@@ -166,7 +166,7 @@ class TestVoteApprovalUnlocksBadges:
         c_email = f"TEST_vote_c_{suffix}@ex.com"
         rp = requests.post(f"{API}/auth/register", json={
             "email": p_email, "password": "pass1234", "name": "TEST VP",
-            "role": "parent", "family_name": "TEST_VoteFam", "pin": "1234",
+            "role": "parent", "family_name": "TEST_VoteFam", "pin": "123456",
         }, timeout=15)
         assert rp.status_code == 200, rp.text
         parent = rp.json()
@@ -181,7 +181,7 @@ class TestVoteApprovalUnlocksBadges:
         p_tok = parent["access_token"]
         c_tok = child["access_token"]
         child_id = child["user"]["id"]
-        p_hdr = _pin_hdr(p_tok, "1234")
+        p_hdr = _pin_hdr(p_tok, "123456")
 
         # Create photo task
         rt = requests.post(f"{API}/tasks", json={
@@ -254,7 +254,7 @@ class TestRegression:
         email = f"TEST_reg_del_{suffix}@ex.com"
         rp = requests.post(f"{API}/auth/register", json={
             "email": email, "password": "pass1234", "name": "TEST X",
-            "role": "parent", "family_name": "TEST_R", "pin": "1234",
+            "role": "parent", "family_name": "TEST_R", "pin": "123456",
         }, timeout=15).json()
         tok = rp["access_token"]
         rd = requests.delete(f"{API}/auth/account", json={"password": "pass1234"},
