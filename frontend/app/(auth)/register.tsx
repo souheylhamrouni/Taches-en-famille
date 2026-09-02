@@ -3,14 +3,16 @@ import {
   View, Text, TextInput, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useAuth } from "@/src/lib/auth";
+import { api } from "@/src/lib/api";
 import { T, S, R } from "@/src/lib/theme";
  
 const AVATARS_PARENT = ["🦸", "👩", "🧑", "🦸‍♀️"];
 const AVATARS_CHILD = ["🐻", "🦊", "🐼", "🐯", "🐸", "🦄"];
  
 export default function Register() {
+  const router = useRouter();
   const { register } = useAuth();
   const [role, setRole] = useState<"parent" | "child">("parent");
   const [name, setName] = useState("");
@@ -23,15 +25,16 @@ export default function Register() {
   const [avatar, setAvatar] = useState<string>("🦸");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
- 
+  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
+
   const avatars = role === "parent" ? AVATARS_PARENT : AVATARS_CHILD;
- 
+
   const onSubmit = async () => {
-    setErr(null); setBusy(true);
+    setErr(null); setBusy(true); setVerifyUrl(null);
     try {
       const payload: any = { email: email.trim(), password, name: name.trim(), role, avatar };
       if (role === "parent") {
-        if (!pin.match(/^\d{4}$/)) throw new Error("PIN à 4 chiffres requis");
+        if (!/^\d{6}$/.test(pin)) throw new Error("PIN à 6 chiffres requis");
         payload.pin = pin;
         if (parentMode === "new") {
           payload.family_name = familyName || `Tribu ${name}`;
@@ -43,7 +46,11 @@ export default function Register() {
         if (!familyId) throw new Error("Code tribu requis pour un enfant");
         payload.family_id = familyId.trim();
       }
-      await register(payload);
+      const result: any = await register(payload);
+      if (result?.verify_url) setVerifyUrl(result.verify_url);
+      if (result?.email_verified === false) {
+        // Account created but not verified — show the verify banner
+      }
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
@@ -126,10 +133,10 @@ export default function Register() {
                   </>
                 )}
  
-                <Text style={styles.label}>Code PIN adulte (4 chiffres)</Text>
+                <Text style={styles.label}>Code PIN adulte (6 chiffres)</Text>
                 <TextInput testID="register-pin-input" value={pin} onChangeText={setPin}
                   placeholder="123456" placeholderTextColor={T.onSurfaceMuted}
-                  keyboardType="number-pad" maxLength={4} secureTextEntry style={styles.input} />
+                  keyboardType="number-pad" maxLength={6} secureTextEntry style={styles.input} />
               </>
             ) : (
               <>
@@ -141,6 +148,20 @@ export default function Register() {
             )}
  
             {err ? <Text style={styles.err} testID="register-error">{err}</Text> : null}
+            {verifyUrl ? (
+              <View style={styles.verifyBanner} testID="register-verify-banner">
+                <Text style={styles.verifyTitle}>📧 Vérifie ton email</Text>
+                <Text style={styles.verifySub}>
+                  Un mail de confirmation vient d'être envoyé. En mode dev, clique sur le lien ci-dessous pour confirmer :
+                </Text>
+                <Text style={styles.verifyLink} selectable onPress={() => router.push(verifyUrl as any)}>
+                  {verifyUrl}
+                </Text>
+                <Pressable testID="register-verify-go" onPress={() => router.push(verifyUrl as any)} style={styles.verifyBtn}>
+                  <Text style={styles.verifyBtnText}>Ouvrir le lien de confirmation</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <Pressable testID="register-submit-button" onPress={onSubmit} disabled={busy}
               style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}>
               <Text style={styles.btnText}>{busy ? "Création..." : "C'est parti !"}</Text>
@@ -180,6 +201,12 @@ const styles = StyleSheet.create({
   avatarBtn: { width: 52, height: 52, borderRadius: R.md, backgroundColor: T.surfaceSecondary, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: T.border },
   avatarBtnActive: { borderColor: T.brand, backgroundColor: "#EFFBE0" },
   err: { color: T.red, fontWeight: "700", marginTop: S.xs },
+  verifyBanner: { backgroundColor: "#FFF7E0", borderRadius: R.md, padding: S.md, borderWidth: 2, borderColor: T.orange, gap: 4, marginTop: S.sm },
+  verifyTitle: { fontWeight: "900", color: T.onSurface, fontSize: 14 },
+  verifySub: { color: T.onSurfaceMuted, fontSize: 12, lineHeight: 18 },
+  verifyLink: { color: T.brand, fontSize: 11, marginTop: 4, fontWeight: "700" },
+  verifyBtn: { backgroundColor: T.brand, paddingVertical: 10, borderRadius: R.pill, alignItems: "center", marginTop: 6, borderBottomWidth: 3, borderBottomColor: T.brandDark },
+  verifyBtnText: { color: T.white, fontWeight: "900", fontSize: 13 },
   btn: { backgroundColor: T.brand, borderRadius: R.pill, paddingVertical: 16, alignItems: "center", marginTop: S.md, borderBottomWidth: 4, borderBottomColor: T.brandDark },
   btnText: { color: T.white, fontSize: 17, fontWeight: "900" },
   linkBtn: { alignItems: "center", padding: S.md },

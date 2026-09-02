@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from app.db.mongo import db
 from app.core.security import passwords, DUMMY, new_id, now, make_token, current_user
 from app.core.rate_limiter import pin_limiter, auth_limiter
+from app.services.email import email_service
 from app.models.user import (
     UserRegister, UserLogin, PinVerify, PinChange, ProfileUpdate,
     PasswordUpdate, ForgotPasswordRequest, ResetPasswordRequest
@@ -36,7 +37,9 @@ async def register(body: UserRegister):
         await db.families.insert_one({
             "id": fam_id,
             "name": body.family_name or "Famille",
-            "created_at": now()
+            "created_at": now(),
+            "reminder_hour": 19, "reminder_minute": 0,
+            "penalty_hour": 20, "penalty_minute": 0,
         })
     else:
         fam = await db.families.find_one({"id": fam_id})
@@ -44,6 +47,7 @@ async def register(body: UserRegister):
             raise HTTPException(404, "Famille introuvable avec cet identifiant")
 
     user_id = new_id()
+    verify_token = secrets.token_urlsafe(32)
     doc = {
         "id": user_id,
         "email": email,
@@ -57,18 +61,34 @@ async def register(body: UserRegister):
         "total_earned": 0,
         "tasks_completed": 0,
         "badges_unlocked": [],
+        "email_verified": False,
+        "verify_token_hash": passwords.hash(verify_token),
+        "verify_expires": (now() + timedelta(hours=24)).isoformat(),
         "created_at": now(),
     }
     if body.role == "parent" and body.pin:
         doc["pin_hash"] = passwords.hash(body.pin)
 
     await db.users.insert_one(doc)
+
+    # Send the verification email (best-effort: never fails the registration)
+    verify_url = f"{email_service.app_url}/(auth)/verify-email?token={verify_token}&id={user_id}"
+    subject, html = email_service.render_verification_email(doc["name"], verify_url)
+    await email_service.send(email, subject, html, text=f"Bienvenue {doc['name']} !\n\n{verify_url}")
+
     doc.pop("password_hash", None)
     doc.pop("pin_hash", None)
+    doc.pop("verify_token_hash", None)
     doc.pop("_id", None)
-    
+
     token = make_token(doc)
-    return {"access_token": token, "user": doc, "family_id": fam_id}
+    return {
+        "access_token": token,
+        "user": doc,
+        "family_id": fam_id,
+        "email_verified": False,
+        "verify_url": verify_url if not email_service.enabled else None,
+    }
 
 
 @router.post("/login")
@@ -216,10 +236,10 @@ async def reset_password(body: ResetPasswordRequest):
         user = await db.users.find_one({"email": email})
     elif body.token:
         user = await db.users.find_one({"reset_token": body.token})
-        
+
     if not user:
         raise HTTPException(400, "Utilisateur introuvable ou jeton invalide")
-        
+
     if body.code:
         if not user.get("reset_code_hash"):
             raise HTTPException(400, "Code invalide ou expiré")
@@ -228,7 +248,7 @@ async def reset_password(body: ResetPasswordRequest):
             raise HTTPException(400, "Code expiré")
         if not passwords.verify(body.code, user["reset_code_hash"]):
             raise HTTPException(400, "Code incorrect")
-            
+
     await db.users.update_one(
         {"id": user["id"]},
         {
@@ -237,3 +257,59 @@ async def reset_password(body: ResetPasswordRequest):
         }
     )
     return {"ok": True, "message": "Mot de passe mis à jour avec succès"}
+
+
+@router.get("/verify-email")
+async def verify_email(token: str, id: str):
+    """Confirm a registration via the token emailed to the user.
+
+    Used by the /(auth)/verify-email frontend page when the user clicks
+    the confirmation link in the welcome email.
+    """
+    user = await db.users.find_one({"id": id})
+    if not user:
+        raise HTTPException(404, "Lien de confirmation invalide")
+
+    if user.get("email_verified"):
+        return {"ok": True, "already_verified": True, "name": user.get("name")}
+
+    if not user.get("verify_token_hash") or not user.get("verify_expires"):
+        raise HTTPException(400, "Lien de confirmation invalide ou expiré")
+
+    exp = user["verify_expires"]
+    try:
+        if datetime.fromisoformat(exp) < now():
+            raise HTTPException(400, "Ce lien de confirmation a expiré. Demande-en un nouveau depuis ton compte.")
+    except ValueError:
+        raise HTTPException(400, "Lien de confirmation invalide")
+
+    if not passwords.verify(token, user["verify_token_hash"]):
+        raise HTTPException(400, "Lien de confirmation invalide")
+
+    await db.users.update_one(
+        {"id": id},
+        {"$set": {"email_verified": True}, "$unset": {"verify_token_hash": "", "verify_expires": ""}}
+    )
+    return {"ok": True, "name": user.get("name")}
+
+
+@router.post("/resend-verification")
+async def resend_verification(user=Depends(current_user)):
+    """Resend the email verification link to the current user."""
+    if user.get("email_verified"):
+        return {"ok": True, "already_verified": True}
+    fresh = await db.users.find_one({"id": user["id"]})
+    if not fresh:
+        raise HTTPException(404, "Utilisateur introuvable")
+    new_token = secrets.token_urlsafe(32)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "verify_token_hash": passwords.hash(new_token),
+            "verify_expires": (now() + timedelta(hours=24)).isoformat(),
+        }}
+    )
+    verify_url = f"{email_service.app_url}/(auth)/verify-email?token={new_token}&id={user['id']}"
+    subject, html = email_service.render_verification_email(fresh.get("name", ""), verify_url)
+    await email_service.send(fresh["email"], subject, html, text=f"Bienvenue !\n\n{verify_url}")
+    return {"ok": True}

@@ -32,7 +32,10 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
     families = await db.families.find(fam_query, {"_id": 0}).to_list(500)
     for fam in families:
         tasks = await db.tasks.find({"family_id": fam["id"], "frequency": "daily", "active": {"$ne": False}}, {"_id": 0}).to_list(200)
-        users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(50)
+        users = await db.users.find(
+            {"family_id": fam["id"], "role": "child", "active": {"$ne": False}},
+            {"_id": 0, "password_hash": 0, "pin_hash": 0}
+        ).to_list(50)
         comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1, "status": 1}).to_list(5000)
         done = {(c["task_id"], c["user_id"]): c["status"] for c in comps}
         existing_pen = await db.penalties.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
@@ -81,15 +84,19 @@ async def apply_daily_penalties(only_family_id: Optional[str] = None):
                     )
 
 
-async def send_evening_reminders():
-    """Runs at 19:00: warn users with unfinished daily tasks.
+async def send_evening_reminders(only_family_id: Optional[str] = None):
+    """Runs at the configured reminder time: warn users with unfinished daily tasks.
     Users are not reminded about shared tasks that have been claimed by someone else."""
-    log.info("Sending 19:00 evening reminders")
+    log.info("Sending evening reminders")
     today_key = date.today().isoformat()
-    families = await db.families.find({}, {"_id": 0}).to_list(500)
+    fam_query = {"id": only_family_id} if only_family_id else {}
+    families = await db.families.find(fam_query, {"_id": 0, "id": 1, "name": 1}).to_list(500)
     for fam in families:
         tasks = await db.tasks.find({"family_id": fam["id"], "frequency": "daily", "active": {"$ne": False}}, {"_id": 0}).to_list(200)
-        users = await db.users.find({"family_id": fam["id"], "role": "child"}, {"_id": 0}).to_list(50)
+        users = await db.users.find(
+            {"family_id": fam["id"], "role": "child", "active": {"$ne": False}},
+            {"_id": 0}
+        ).to_list(50)
         comps = await db.completions.find({"family_id": fam["id"], "day": today_key}, {"_id": 0, "task_id": 1, "user_id": 1}).to_list(5000)
         submitted = {(c["task_id"], c["user_id"]) for c in comps}
 
@@ -116,5 +123,5 @@ async def send_evening_reminders():
                 await push_service.send_push(
                     u["push_token"],
                     "Il te reste 1h ! ⏰",
-                    f"{len(missing)} tâche(s) à finir avant 20h : {', '.join(missing[:3])}"
+                    f"{len(missing)} tâche(s) à finir avant la fin de la journée : {', '.join(missing[:3])}"
                 )

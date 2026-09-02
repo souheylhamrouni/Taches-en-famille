@@ -56,6 +56,8 @@ async def current_user(token: Optional[str] = Depends(oauth2_scheme)) -> dict:
         )
         if not user:
             raise HTTPException(401, "Utilisateur introuvable")
+        if user.get("active") is False:
+            raise HTTPException(403, "Compte désactivé")
         return user
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Jeton invalide")

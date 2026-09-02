@@ -20,10 +20,52 @@ async def seed_demo():
                 {"$set": {"pin_hash": new_hash}}
             )
             log.info("Migrated demo parent PIN to 123456")
+        # Migration: ensure demo family has default reminder/penalty times and menu
+        fam = await db.families.find_one({"id": existing["family_id"]})
+        if fam and ("reminder_hour" not in fam or "penalty_hour" not in fam):
+            await db.families.update_one(
+                {"id": existing["family_id"]},
+                {"$set": {
+                    "reminder_hour": 19, "reminder_minute": 0,
+                    "penalty_hour": 20, "penalty_minute": 0,
+                }}
+            )
+            log.info("Migrated demo family reminder/penalty times to defaults")
+        # Migration: seed demo menu if none exists
+        menu_count = await db.menu.count_documents({"family_id": existing["family_id"]})
+        if menu_count == 0:
+            menu_fr = [
+                {"day": 0, "meal": "lunch", "title": "Pâtes à la bolognaise", "notes": "Pâtes, sauce bolognaise, parmesan"},
+                {"day": 0, "meal": "dinner", "title": "Poulet rôti", "notes": "Poulet, pommes de terre, salade"},
+                {"day": 1, "meal": "lunch", "title": "Wrap au saumon", "notes": "Wrap, saumon fumé, fromage"},
+                {"day": 1, "meal": "dinner", "title": "Curry de légumes", "notes": "Riz, légumes, lait de coco"},
+                {"day": 2, "meal": "lunch", "title": "Salade de pâtes", "notes": "Pâtes, tomates, olives, feta"},
+                {"day": 2, "meal": "dinner", "title": "Steak-frites", "notes": "Steak, frites, salade verte"},
+                {"day": 3, "meal": "lunch", "title": "Tacos", "notes": "Tortillas, viande, fromage, salsa"},
+                {"day": 3, "meal": "dinner", "title": "Soupe aux nouilles", "notes": "Nouilles, bouillon, légumes"},
+                {"day": 4, "meal": "lunch", "title": "Pizza maison", "notes": "Pâte, sauce tomate, fromage, pepperoni"},
+                {"day": 4, "meal": "dinner", "title": "Saumon au four", "notes": "Saumon, quinoa, brocoli"},
+                {"day": 5, "meal": "lunch", "title": "Bento", "notes": "Riz, œuf dur, saucisses, légumes"},
+                {"day": 5, "meal": "dinner", "title": "Burger", "notes": "Pain, steak, fromage, frites"},
+                {"day": 6, "meal": "lunch", "title": "Couscous", "notes": "Couscous, merguez, légumes"},
+                {"day": 6, "meal": "dinner", "title": "Gratin dauphinois", "notes": "Pommes de terre, crème, fromage"},
+            ]
+            for m in menu_fr:
+                await db.menu.insert_one({
+                    "id": new_id(), "family_id": existing["family_id"],
+                    "day_of_week": m["day"], "meal_type": m["meal"],
+                    "title": m["title"], "notes": m["notes"],
+                    "created_at": now(),
+                })
+            log.info("Seeded demo menu data for existing family")
         return {"ok": True, "message": "Déjà initialisé", "family_id": existing.get("family_id")}
 
     fam_id = new_id()
-    await db.families.insert_one({"id": fam_id, "name": "Tribu Dupont", "created_at": now()})
+    await db.families.insert_one({
+        "id": fam_id, "name": "Tribu Dupont", "created_at": now(),
+        "reminder_hour": 19, "reminder_minute": 0,
+        "penalty_hour": 20, "penalty_minute": 0,
+    })
 
     users_to_create = [
         {"email": "papa@demo.fr", "name": "Papa", "role": "parent", "pin": "123456", "avatar": "🦸"},
@@ -96,6 +138,30 @@ async def seed_demo():
             "id": new_id(), "family_id": fam_id, "item_name": s,
             "is_bought": False, "added_by": ids["papa@demo.fr"],
             "added_by_name": "Papa", "created_at": now()
+        })
+
+    menu_fr = [
+        {"day": 0, "meal": "lunch", "title": "Pâtes à la bolognaise", "notes": "Pâtes, sauce bolognaise, parmesan"},
+        {"day": 0, "meal": "dinner", "title": "Poulet rôti", "notes": "Poulet, pommes de terre, salade"},
+        {"day": 1, "meal": "lunch", "title": "Wrap au saumon", "notes": "Wrap, saumon fumé, fromage"},
+        {"day": 1, "meal": "dinner", "title": "Curry de légumes", "notes": "Riz, légumes, lait de coco"},
+        {"day": 2, "meal": "lunch", "title": "Salade de pâtes", "notes": "Pâtes, tomates, olives, feta"},
+        {"day": 2, "meal": "dinner", "title": "Steak-frites", "notes": "Steak, frites, salade verte"},
+        {"day": 3, "meal": "lunch", "title": "Tacos", "notes": "Tortillas, viande, fromage, salsa"},
+        {"day": 3, "meal": "dinner", "title": "Soupe aux nouilles", "notes": "Nouilles, bouillon, légumes"},
+        {"day": 4, "meal": "lunch", "title": "Pizza maison", "notes": "Pâte, sauce tomate, fromage, pepperoni"},
+        {"day": 4, "meal": "dinner", "title": "Saumon au four", "notes": "Saumon, quinoa, brocoli"},
+        {"day": 5, "meal": "lunch", "title": "Bento", "notes": "Riz, œuf dur, saucisses, légumes"},
+        {"day": 5, "meal": "dinner", "title": "Burger", "notes": "Pain, steak, fromage, frites"},
+        {"day": 6, "meal": "lunch", "title": "Couscous", "notes": "Couscous, merguez, légumes"},
+        {"day": 6, "meal": "dinner", "title": "Gratin dauphinois", "notes": "Pommes de terre, crème, fromage"},
+    ]
+    for m in menu_fr:
+        await db.menu.insert_one({
+            "id": new_id(), "family_id": fam_id,
+            "day_of_week": m["day"], "meal_type": m["meal"],
+            "title": m["title"], "notes": m["notes"],
+            "created_at": now(),
         })
 
     await db.challenges.insert_one({

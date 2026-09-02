@@ -19,6 +19,7 @@ from app.api.routers.events import router as events_router
 from app.api.routers.shopping import router as shopping_router
 from app.api.routers.pauses import router as pauses_router
 from app.api.routers.photos import router as photos_router
+from app.api.routers.menu import router as menu_router
 from app.api.routers.dev import router as dev_router
 
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +37,8 @@ async def lifespan(app: FastAPI):
         await db.completions.create_index([("task_id", 1), ("user_id", 1), ("day", 1)])
         await db.shared_claims.create_index([("task_id", 1), ("day", 1)])
         await db.shared_claims.create_index("family_id")
+        await db.menu.create_index("family_id")
+        await db.scheduled_runs.create_index("id", unique=True)
         await db.pauses.create_index("family_id")
     except Exception as e:
         log.warning(f"Index creation warning: {e}")
@@ -90,6 +93,7 @@ api.include_router(events_router)
 api.include_router(shopping_router)
 api.include_router(pauses_router)
 api.include_router(photos_router)
+api.include_router(menu_router)
 api.include_router(dev_router)
 
 app.include_router(api)

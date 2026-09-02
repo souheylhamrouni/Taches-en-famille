@@ -37,7 +37,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthCtx.Provider value={{
       user, loading, setUser,
       login: async (e, p) => { const u = await loginRequest(e, p); setUser(u); return u; },
-      register: async (p) => { const u = await registerRequest(p); setUser(u); return u; },
+      register: async (p) => {
+        const data = await registerRequest(p);
+        setUser(data.user);
+        return data;
+      },
       logout: async () => { await apiLogout(); setUser(null); },
       refresh,
     }}>{children}</AuthCtx.Provider>

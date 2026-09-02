@@ -48,7 +48,25 @@ export default function Settings() {
           <Text style={s.rowLabel}>Pauses & congés</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
         </Pressable>
-        {/*<Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
+        <Pressable testID="link-schedule" onPress={() => router.push("/(parent)/schedule")}
+          style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
+          <View style={s.iconWrap}><Ionicons name="alarm-outline" size={22} color={T.orange} /></View>
+          <Text style={s.rowLabel}>Horaires rappels & pénalités</Text>
+          <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
+        </Pressable>
+        <Pressable testID="link-menu" onPress={() => router.push("/(parent)/rewards-admin")}
+          style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
+          <View style={s.iconWrap}><Ionicons name="gift" size={22} color={T.orange} /></View>
+          <Text style={s.rowLabel}>Cadeaux</Text>
+          <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
+        </Pressable>
+        {/*<Pressable testID="link-menu" onPress={() => router.push("/(parent)/menu")}
+          style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
+          <View style={s.iconWrap}><Ionicons name="restaurant-outline" size={22} color={T.orange} /></View>
+          <Text style={s.rowLabel}>Menu de la semaine</Text>
+          <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
+        </Pressable>
+        <Pressable testID="link-calendar" onPress={() => router.push("/shared/calendar")}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="calendar" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Calendrier tribal</Text>
@@ -59,13 +77,13 @@ export default function Settings() {
           <View style={s.iconWrap}><Ionicons name="cart" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Liste de courses</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
-        </Pressable>*/}
+        </Pressable>
         <Pressable testID="clear-pin-button" onPress={clearPin}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.9 }]}>
           <View style={s.iconWrap}><Ionicons name="lock-closed" size={22} color={T.orange} /></View>
           <Text style={s.rowLabel}>Verrouiller le mode adulte</Text>
           <Ionicons name="chevron-forward" size={20} color={T.onSurfaceMuted} />
-        </Pressable>
+        </Pressable>*/}
 
         <View style={{ height: S.xl }} />
         <Pressable testID="logout-button" onPress={logout} style={({ pressed }) => [s.logout, pressed && { opacity: 0.85 }]}>

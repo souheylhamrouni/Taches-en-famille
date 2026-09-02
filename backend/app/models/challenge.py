@@ -65,4 +65,8 @@ class PauseCreate(BaseModel):
 
 # Family
 class FamilyPatch(BaseModel):
-    name: str = Field(min_length=2)
+    name: Optional[str] = Field(default=None, min_length=2)
+    reminder_hour: Optional[int] = Field(default=None, ge=0, le=23)
+    reminder_minute: Optional[int] = Field(default=None, ge=0, le=59)
+    penalty_hour: Optional[int] = Field(default=None, ge=0, le=23)
+    penalty_minute: Optional[int] = Field(default=None, ge=0, le=59)
