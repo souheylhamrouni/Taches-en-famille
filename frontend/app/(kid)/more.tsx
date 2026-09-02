@@ -15,6 +15,7 @@ export default function More() {
 
   const links = [
     { id: "account", label: "Mon compte", icon: "person-circle" as const, path: "/shared/account" },
+    { id: "members", label: "Membres de la tribu", icon: "people" as const, path: "/shared/members" },
     { id: "challenges", label: "Défi tribal", icon: "flag" as const, path: "/shared/challenges" },
     { id: "badges", label: "Mes badges", icon: "ribbon" as const, path: "/shared/badges" },
     { id: "calendar", label: "Calendrier tribal", icon: "calendar" as const, path: "/shared/calendar" },

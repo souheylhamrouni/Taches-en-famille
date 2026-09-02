@@ -30,6 +30,7 @@ export default function KidLayout() {
       <Tabs.Screen name="tasks" options={{ title: "Tâches", tabBarIcon: ({ color }) => <Ionicons name="list" size={22} color={color} /> }} />
       <Tabs.Screen name="leaderboard" options={{ title: "Classement", tabBarIcon: ({ color }) => <Ionicons name="trophy" size={22} color={color} /> }} />
       <Tabs.Screen name="shop" options={{ title: "Cadeau", tabBarIcon: ({ color }) => <Ionicons name="gift" size={22} color={color} /> }} />
+      <Tabs.Screen name="menu" options={{ title: "Menu", tabBarIcon: ({ color }) => <Ionicons name="restaurant-outline" size={22} color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: "Plus", tabBarIcon: ({ color }) => <Ionicons name="ellipsis-horizontal" size={22} color={color} /> }} />
     </Tabs>
   );
