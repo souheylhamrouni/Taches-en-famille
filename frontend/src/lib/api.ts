@@ -2,6 +2,10 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export interface ApiRequestInit extends RequestInit {
+  skipParentPin?: boolean;
+}
+
 export const storage = {
   get: (k: string) => Platform.OS === "web" ? AsyncStorage.getItem(k) : SecureStore.getItemAsync(k),
   set: (k: string, v: string) => Platform.OS === "web" ? AsyncStorage.setItem(k, v) : SecureStore.setItemAsync(k, v),
@@ -23,9 +27,9 @@ function mapError(body: any, status: number): Error {
   return new Error("Une erreur est survenue.");
 }
 
-async function request<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T = any>(path: string, init: ApiRequestInit = {}): Promise<T> {
   const token = await storage.get("access_token");
-  const pinToken = await storage.get("parent_pin_token");
+  const pinToken = init.skipParentPin ? null : await storage.get("parent_pin_token");
   const headers: any = { "Content-Type": "application/json", ...(init.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;
@@ -45,13 +49,13 @@ async function request<T = any>(path: string, init: RequestInit = {}): Promise<T
 }
 
 export const api = {
-  get: <T=any>(p: string) => request<T>(p),
-  post: <T=any>(p: string, body?: any) => request<T>(p, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
-  patch: <T=any>(p: string, body?: any) => request<T>(p, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  del: <T=any>(p: string, body?: any) => request<T>(p, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
-  upload: async <T=any>(p: string, form: FormData): Promise<T> => {
+  get: <T=any>(p: string, init: ApiRequestInit = {}) => request<T>(p, init),
+  post: <T=any>(p: string, body?: any, init: ApiRequestInit = {}) => request<T>(p, { ...init, method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  patch: <T=any>(p: string, body?: any, init: ApiRequestInit = {}) => request<T>(p, { ...init, method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
+  del: <T=any>(p: string, body?: any, init: ApiRequestInit = {}) => request<T>(p, { ...init, method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
+  upload: async <T=any>(p: string, form: FormData, init: ApiRequestInit = {}): Promise<T> => {
     const token = await storage.get("access_token");
-    const pinToken = await storage.get("parent_pin_token");
+    const pinToken = init.skipParentPin ? null : await storage.get("parent_pin_token");
     const headers: any = {};
     if (token) headers.Authorization = `Bearer ${token}`;
     if (pinToken) headers["X-Parent-Pin-Token"] = pinToken;

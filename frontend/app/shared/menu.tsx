@@ -1,27 +1,24 @@
 import { useCallback, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { T, S, R } from "@/src/lib/theme";
-import { ScreenHeader, Card } from "@/src/components/UI";
-import ParentPinModal, { hasPinToken } from "@/src/components/ParentPinModal";
+import { ScreenHeader } from "@/src/components/UI";
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MEALS = ["lunch", "dinner"] as const;
 const MEAL_LABELS = { lunch: "Midi", dinner: "Soir" };
 
 export default function MenuPage() {
-  const router = useRouter();
   const [menu, setMenu] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const r = await api.get("/menu");
+      const r = await api.get("/menu", { skipParentPin: true });
       const m: Record<string, string> = {};
       const n: Record<string, string> = {};
       for (const e of (r.menu || [])) {
@@ -41,8 +38,6 @@ export default function MenuPage() {
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editNotes, setEditNotes] = useState("");
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pendingSave, setPendingSave] = useState<(() => Promise<void>) | null>(null);
 
   const openEdit = (key: string) => {
     setEditKey(key);
@@ -54,33 +49,22 @@ export default function MenuPage() {
   const saveEdit = async () => {
     if (!editKey) return;
     const [dow, meal] = editKey.split(":") as [string, string];
-    const doSave = async () => {
-      await api.post("/menu", {
-        day_of_week: parseInt(dow),
-        meal_type: meal,
-        title: editTitle,
-        notes: editNotes,
-      });
-      setMenu((m) => ({ ...m, [editKey!]: editTitle }));
-      setNotes((n) => ({ ...n, [editKey!]: editNotes }));
-      setEditOpen(false);
-      flashMsg("✅ Plat enregistré");
-    };
-
-    if (await hasPinToken()) {
-      await doSave();
-    } else {
-      setPendingSave(() => doSave);
-      setPinOpen(true);
-    }
+    await api.post("/menu", {
+      day_of_week: parseInt(dow),
+      meal_type: meal,
+      title: editTitle,
+      notes: editNotes,
+    }, { skipParentPin: true });
+    setMenu((m) => ({ ...m, [editKey!]: editTitle }));
+    setNotes((n) => ({ ...n, [editKey!]: editNotes }));
+    setEditOpen(false);
+    flashMsg(editTitle ? "✅ Plat enregistré" : "🗑️ Plat supprimé");
   };
 
-  const handlePinSuccess = () => {
-    setPinOpen(false);
-    if (pendingSave) {
-      pendingSave();
-      setPendingSave(null);
-    }
+  const clearEdit = async () => {
+    setEditTitle("");
+    setEditNotes("");
+    await saveEdit();
   };
 
   return (
@@ -143,6 +127,9 @@ export default function MenuPage() {
               <Pressable testID="modal-cancel" onPress={() => setEditOpen(false)} style={[s.modalBtn, { backgroundColor: T.surfaceSecondary }]}>
                 <Text style={s.modalBtnText}>Annuler</Text>
               </Pressable>
+              <Pressable testID="modal-clear" onPress={clearEdit} style={[s.modalBtn, { backgroundColor: "#FFEBEE" }]}>
+                <Text style={[s.modalBtnText, { color: "#C62828" }]}>Vider</Text>
+              </Pressable>
               <Pressable testID="modal-save" onPress={saveEdit} style={[s.modalBtn, { backgroundColor: T.brand }]}>
                 <Text style={[s.modalBtnText, { color: T.white }]}>Enregistrer</Text>
               </Pressable>
@@ -150,8 +137,6 @@ export default function MenuPage() {
           </View>
         </View>
       </Modal>
-
-      <ParentPinModal visible={pinOpen} onCancel={() => setPinOpen(false)} onSuccess={handlePinSuccess} />
     </SafeAreaView>
   );
 }

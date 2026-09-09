@@ -2,7 +2,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from app.db.mongo import db
-from app.core.security import current_user, parent_pin, new_id, now
+from app.core.security import current_user, new_id, now
 from app.models.menu import MenuEntryCreate, MenuEntryPatch
 
 log = logging.getLogger("tribuquest.menu")
@@ -19,7 +19,14 @@ async def get_menu(user=Depends(current_user)):
 
 
 @router.post("/menu")
-async def add_menu_entry(body: MenuEntryCreate, user=Depends(parent_pin)):
+async def add_menu_entry(body: MenuEntryCreate, user=Depends(current_user)):
+    if not body.title.strip():
+        await db.menu.delete_one({
+            "family_id": user["family_id"],
+            "day_of_week": body.day_of_week,
+            "meal_type": body.meal_type,
+        })
+        return {"ok": True, "action": "deleted"}
     existing = await db.menu.find_one({
         "family_id": user["family_id"],
         "day_of_week": body.day_of_week,
@@ -45,7 +52,7 @@ async def add_menu_entry(body: MenuEntryCreate, user=Depends(parent_pin)):
 
 
 @router.put("/menu/{entry_id}")
-async def update_menu_entry(entry_id: str, body: MenuEntryPatch, user=Depends(parent_pin)):
+async def update_menu_entry(entry_id: str, body: MenuEntryPatch, user=Depends(current_user)):
     updates = {}
     if body.title is not None:
         updates["title"] = body.title
@@ -63,7 +70,7 @@ async def update_menu_entry(entry_id: str, body: MenuEntryPatch, user=Depends(pa
 
 
 @router.delete("/menu/{entry_id}")
-async def delete_menu_entry(entry_id: str, user=Depends(parent_pin)):
+async def delete_menu_entry(entry_id: str, user=Depends(current_user)):
     result = await db.menu.delete_one({"id": entry_id, "family_id": user["family_id"]})
     if result.deleted_count == 0:
         raise HTTPException(404, "Entrée de menu introuvable")
