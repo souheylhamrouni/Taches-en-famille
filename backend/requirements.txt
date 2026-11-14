@@ -19,7 +19,7 @@ charset-normalizer==3.5.1
 click==8.4.2
 cryptography==50.0.0
 distro==1.9.0
-dnspython==2.8.0
+dnspython==2.9.2
 ecdsa==0.19.2
 email-validator==2.3.0
 execnet==2.1.2
